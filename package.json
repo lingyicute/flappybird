@@ -1,0 +1,10 @@
+{
+  "name": "flappybird-remake",
+  "private": true,
+  "description": "Offline Flappy Bird: single-file index.html + dev.html, with build tools and Playwright gates",
+  "scripts": {
+    "test": "bash testing/run-all.sh",
+    "test:dev": "ENTRY=dev.html bash testing/run-all.sh"
+  },
+  "devDependencies": { "playwright": "^1.47.2" }
+}

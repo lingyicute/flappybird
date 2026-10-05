@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link
+      rel="preload"
+      href="/fonts/Jersey10-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <title>Flappy Bird — remake</title>
+    <meta
+      name="description"
+      content="Play Flappy Bird offline in your browser. No download, no signup, no network."
+    />
+    <meta name="theme-color" content="#4ec0ca" />
+    <style>
+      .boot-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: #4ec0ca;
+        color: #fff;
+        z-index: 200;
+        font-family: system-ui, sans-serif;
+      }
+      .boot-splash__logo {
+        image-rendering: pixelated;
+        width: min(78vw, 460px);
+        height: auto;
+      }
+      .boot-splash__spinner {
+        margin-top: 12vh;
+        width: 48px;
+        height: 48px;
+        border: 5px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: boot-spin 0.8s linear infinite;
+      }
+      .boot-splash__label {
+        font-size: 18px;
+        letter-spacing: 0.05em;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-Dm5mUOvC.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CsU9WTOK.css">
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot-splash">
+        <img class="boot-splash__logo" src="/sprites/logo.png" alt="Flappy Bird" />
+        <div class="boot-splash__spinner"></div>
+        <div class="boot-splash__label">Loading…</div>
+      </div>
+    </div>
+  </body>
+</html>
