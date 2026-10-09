@@ -11002,18 +11002,39 @@ class Lw {
       (this.safeBottomY = -this.frameH / 2 + (c * u) / this.pixelsPerUnit);
   }
   setupContext(i) {
-    i.resetTransform(),
-      this.offsetX >= 1 &&
-        ((i.fillStyle = Rw), i.fillRect(0, 0, this.canvasW, this.canvasH)),
-      i.save(),
-      i.translate(Math.round(this.offsetX), Math.round(this.offsetY)),
-      i.beginPath(),
-      i.rect(0, 0, Math.round(this.framePxW), Math.round(this.framePxH)),
-      i.clip(),
-      (i.fillStyle = Tw),
-      i.fillRect(0, 0, this.framePxW, this.framePxH),
-      i.translate(this.framePxW / 2, this.framePxH / 2),
-      i.scale(this.pixelsPerUnit, -this.pixelsPerUnit);
+    i.resetTransform();
+    if (this.offsetX >= 1) {
+      i.fillStyle = Rw;
+      i.fillRect(0, 0, this.canvasW, this.canvasH);
+    }
+
+    i.save();
+    i.translate(Math.round(this.offsetX), Math.round(this.offsetY));
+
+    const frameWidth = Math.round(this.framePxW);
+    const frameHeight = Math.round(this.framePxH);
+    i.beginPath();
+    if (this.offsetX >= 1) {
+      const radius = Math.min(frameWidth, frameHeight) * 0.035;
+      i.moveTo(radius, 0);
+      i.lineTo(frameWidth - radius, 0);
+      i.quadraticCurveTo(frameWidth, 0, frameWidth, radius);
+      i.lineTo(frameWidth, frameHeight - radius);
+      i.quadraticCurveTo(frameWidth, frameHeight, frameWidth - radius, frameHeight);
+      i.lineTo(radius, frameHeight);
+      i.quadraticCurveTo(0, frameHeight, 0, frameHeight - radius);
+      i.lineTo(0, radius);
+      i.quadraticCurveTo(0, 0, radius, 0);
+      i.closePath();
+    } else {
+      i.rect(0, 0, frameWidth, frameHeight);
+    }
+    i.clip();
+
+    i.fillStyle = Tw;
+    i.fillRect(0, 0, this.framePxW, this.framePxH);
+    i.translate(this.framePxW / 2, this.framePxH / 2);
+    i.scale(this.pixelsPerUnit, -this.pixelsPerUnit);
   }
   restoreContext(i) {
     i.restore();
