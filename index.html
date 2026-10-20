@@ -10772,10 +10772,11 @@ const RE = 0.1,
   DE = 0.06,
   BE = 0.15,
   xE = 0.02,
-  FE = 0.5,
+  // 0.5 here meant up to one suicide per two pipes
+  FE = 0.06,
   HE = 4,
-  UE = 12,
-  GE = 4,
+  UE = 8,
+  GE = 3,
   zE = 2,
   bE = 0.04,
   dh = 0.3,
@@ -10811,7 +10812,7 @@ class XE {
     u.aimedPipe &&
       u.ordinal !== this.aimOrdinal &&
       ((this.aimOrdinal = u.ordinal),
-      (this.pipeOffset = this.rollPipeOffset(u.aimedPipe)));
+      (this.pipeOffset = this.rollPipeOffset(u.aimedPipe, i.score)));
     const c = u.target ?? this.profile.hoverTarget,
       f = (i.birdY - this.prevY) * fh,
       h = i.birdY <= this.prevY;
@@ -10854,8 +10855,14 @@ class XE {
     const c = (u + this.profile.latencyJitter / 2) / fh;
     return i + l * c - (Se.gravity / 2) * c * c;
   }
-  rollPipeOffset(i) {
-    return this.fraction() < this.profile.blunderChance
+  rollPipeOffset(i, l = 0) {
+    // a miss aims past the edge of the opening, so it is fatal. That is fine as
+    // an occasional slip, but at the old rate (up to 50 % per pipe) it wiped
+    // most of the field out inside the first three pipes. Make it rarer, and
+    // let the odds creep up with the score so the last birds cannot fly forever
+    // and the round still finishes.
+    const u = Math.min(0.35, this.profile.blunderChance + l * 0.002);
+    return this.fraction() < u
       ? (this.fraction() < 0.5 ? 1 : -1) *
           (i.halfGap + LE + this.fraction() * NE)
       : (this.fraction() * 2 - 1) * this.profile.wobbleRange;
