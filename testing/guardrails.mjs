@@ -37,10 +37,10 @@ const key = (page, code, repeat) => page.evaluate(([c, r]) =>
 
 const out = {};
 
-// -------------------------------------------- 1. the ceiling + keyboard repeat
+// ----------------------------------------- 1. flying off the top + key repeat
 {
   const page = await open('', true);
-  out.ceiling = await page.evaluate(() => {
+  out.sky = await page.evaluate(() => {
     const g = window.__game;
     g.flap();                                   // getready -> play
     let maxY = -Infinity, steps = 0;
@@ -50,9 +50,11 @@ const out = {};
     }
     return { state: g.state, cause: g.runDeathCause, maxY: +maxY.toFixed(3), steps };
   });
-  // a bird pinned to the ceiling must still hit the top pipe, and stay on screen
-  out.ceilingOk = out.ceiling.state === 'gameover' && out.ceiling.cause === 'pipeTop'
-    && out.ceiling.maxY > 1.0 && out.ceiling.maxY < 1.2;
+  // the bird may climb out of the frame (the frame is 2.56 units tall), and it is
+  // still killed by the first top pipe up there: leaving the screen is not a way
+  // to skip the pipes, and it must not be turned into a ceiling either
+  out.skyOk = out.sky.state === 'gameover' && out.sky.cause === 'pipeTop'
+    && out.sky.maxY > 1.5;
 
   // a held key auto-repeats: the repeat events must be ignored, a real press not
   await page.evaluate(() => { window.__game.restart(); window.__game.flap(); });
@@ -144,7 +146,7 @@ out.externalRequests = [...external];
 out.errors = errors;
 console.log(JSON.stringify(out, null, 2));
 
-const pass = out.ceilingOk && out.keyRepeatOk && out.pauseOk && out.royaleReviveOk
+const pass = out.skyOk && out.keyRepeatOk && out.pauseOk && out.royaleReviveOk
   && external.size === 0 && errors.length === 0;
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await browser.close();
