@@ -9799,15 +9799,18 @@ const Qf = "PLAY",
   pr = 0.25,
   // the score block sits a little lower inside the panel now that the best
   // column is a single "HIGHEST" line
-  Zf = 0.32,
+  Zf = 0.36,
   qf = 0.2,
-  AS = 0.13,
-  // the NEW badge follows the label down, so it stays under "HIGHEST"
-  LS = 0.02,
+  AS = 0.17,
+  // the NEW badge is drawn small and follows the label down, so it stays
+  // tucked under "HIGHEST"
+  LS = 0.06,
   NS = -0.17,
   OS = 0.09,
   PS = 0.18,
   Jf = -0.33,
+  // the NEW badge is drawn at 70 % of its artwork size
+  NEW_SCALE = 0.7,
   XS = {
     bronze: "medalBronze",
     silver: "medalSilver",
@@ -9853,7 +9856,8 @@ function kp(r, i, l) {
     nu(r, i, l.bestScore, pr, Zf, 0.129, "center"),
     // one line, level with "SCORE" on the other side of the panel
     $(r, "HIGHEST", pr, AS, ga, "center"),
-    l.isNewBest && i.drawSprite(r, "newBadge", pr, LS),
+    l.isNewBest &&
+      i.drawSprite(r, "newBadge", pr, LS, { scale: NEW_SCALE }),
     $(r, "MEDAL", NS, Jf, OS, "center");
   const u = l.medal ? XS[l.medal] : "medalEmpty";
   i.drawSprite(r, u, PS, Jf);
