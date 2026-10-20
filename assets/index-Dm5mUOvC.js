@@ -9258,6 +9258,11 @@ const zs = Me(C0()),
       const r = !zs.getSnapshot();
       k0(r), zs.publish(r);
     },
+    // set it outright: the easter egg has to put the switch back exactly where
+    // the player had left it, and toggling again cannot promise that
+    setMuted(r) {
+      zs.getSnapshot() !== r && (k0(r), zs.publish(r));
+    },
   };
 const Lf = Se.displacement,
   $h = (r, i, l, u) => ({
@@ -9854,6 +9859,92 @@ function kp(r, i, l) {
     $(r, "MEDAL", NS, Jf, OS, "center");
   const u = l.medal ? XS[l.medal] : "medalEmpty";
   i.drawSprite(r, u, PS, Jf);
+}
+// ------------------------------------------------------------- easter egg ---
+// Ten quick taps on the sound toggle call this up. It is drawn with the same
+// card, type and buttons as the game-over screen, so it belongs to the game
+// instead of looking like a bolted-on web dialog.
+const EGG_TAPS = 10,
+  EGG_TAP_GAP = 600,
+  EGG_POP_SECONDS = 0.18,
+  // the game-over card, stretched a little wider than its artwork: the taller
+  // card that results holds the headline and the two lines at a readable size
+  EGG_CARD_SCALE = 0.84,
+  EGG_CARD_WIDTH = 1.06,
+  EGG_BUTTON_WIDTH = 0.52,
+  EGG_BUTTON_HEIGHT = 0.16,
+  EGG_TITLE_SIZE = 0.15,
+  EGG_LINE1_SIZE = 0.107,
+  EGG_LINE2_SIZE = 0.121,
+  EGG_GOLD = "#ffcf3f";
+function eggLayout() {
+  return {
+    width: EGG_CARD_WIDTH,
+    scale: EGG_CARD_SCALE,
+    centreY: 0.02,
+    titleY: 0.355,
+    line1Y: 0.175,
+    line2Y: 0.06,
+    yesY: -0.105,
+    noY: -0.315,
+  };
+}
+// the longest line has to fit the card at portrait widths: shrink the type
+// until it does, the way the buttons fit their labels
+function eggFit(r, i, l, u) {
+  const c = ot(r, i, l);
+  return c > u ? (l * u) / c : l;
+}
+// mr() draws the game's buttons at their full 0.2 height; the egg card is small,
+// so here the same sprite is drawn shorter and its label sized to match
+function eggButton(r, i, l, u, c, f) {
+  // l is the button colour, u its label, c/f the centre
+  const h = j0[l],
+    g = EGG_BUTTON_HEIGHT / ue[h].worldH,
+    _ = ot(r, u, EGG_BUTTON_HEIGHT * 0.55),
+    w = Math.min(1, (EGG_BUTTON_WIDTH - V0) / _),
+    O = EGG_BUTTON_HEIGHT * 0.55 * w;
+  i.drawStretchedSprite(r, h, c, f, { width: EGG_BUTTON_WIDTH, scale: g });
+  $(r, u, c - Ai(r, u, O), f, O, "center");
+}
+function eggDraw(r, i, l, u, c, f) {
+  const h = Math.min(1, Math.max(0, c / EGG_POP_SECONDS)),
+    g = 1 - (1 - h) ** 3,
+    _ = eggLayout(),
+    w = _.width - 0.16;
+  r.save(),
+    (r.globalAlpha = h),
+    (r.fillStyle = vS),
+    r.fillRect(-l / 2, -u / 2, l, u),
+    r.translate(0, _.centreY),
+    r.scale(0.9 + 0.1 * g, 0.9 + 0.1 * g),
+    i.drawStretchedSprite(r, "panelOutside", 0, 0, {
+      width: _.width,
+      scale: _.scale,
+    }),
+    // every headline in the game is white with a black outline; the egg one
+    // gets the same outline with a gold fill on top
+    $(r, "EASTER EGG!", 0, _.titleY, EGG_TITLE_SIZE, "center"),
+    $(r, "EASTER EGG!", 0, _.titleY, EGG_TITLE_SIZE, "center", EGG_GOLD),
+    $(
+      r,
+      "You found an Easter egg!",
+      0,
+      _.line1Y,
+      eggFit(r, "You found an Easter egg!", EGG_LINE1_SIZE, w),
+      "center",
+    ),
+    $(
+      r,
+      f ? "Switch to Classic Mode?" : "Switch to Royale Mode?",
+      0,
+      _.line2Y,
+      eggFit(r, "Switch to Royale Mode?", EGG_LINE2_SIZE, w),
+      "center",
+    ),
+    eggButton(r, i, "green", "SWITCH", 0, _.yesY),
+    eggButton(r, i, "gray", "NOT NOW", 0, _.noY),
+    r.restore();
 }
 const T_ = 0.13,
   R_ = 0.06,
@@ -11370,6 +11461,58 @@ const kh = {
       const i = jt.createBufferSource();
       (i.buffer = Aa[r]), i.connect(fi), i.start(0);
     },
+    // the easter-egg "ting" of a struck triangle. There is no sample for it, so
+    // it is synthesised: a triangle rings on a set of inharmonic partials
+    // (1 : 2.76 : 5.40 : 8.93 ...), each one dying away faster than the one
+    // below it, over a few milliseconds of high-passed noise for the strike.
+    chime() {
+      // not gated on ki: ten taps on the speaker end muted, and the player has
+      // just earned this sound
+      if (!jt || !fi) return;
+      jt.state === "suspended" && jt.resume();
+      const r = jt.currentTime + 0.005,
+        i = jt.createGain();
+      i.gain.setValueAtTime(0, r),
+        i.gain.linearRampToValueAtTime(0.55, r + 0.004),
+        i.gain.exponentialRampToValueAtTime(0.0001, r + 2.4),
+        i.connect(fi),
+        [
+          [1, 0.5, 2.2],
+          [2.76, 0.26, 1.5],
+          [5.4, 0.14, 1],
+          [8.93, 0.07, 0.6],
+        ].forEach(([l, u, c]) => {
+          const f = jt.createOscillator(),
+            h = jt.createGain();
+          (f.type = "sine"),
+            (f.frequency.value = 1480 * l),
+            h.gain.setValueAtTime(u, r),
+            h.gain.exponentialRampToValueAtTime(0.0001, r + c),
+            f.connect(h),
+            h.connect(i),
+            f.start(r),
+            f.stop(r + c + 0.05);
+        });
+      const l = jt.createBuffer(
+          1,
+          Math.ceil(jt.sampleRate * 0.012),
+          jt.sampleRate,
+        ),
+        u = l.getChannelData(0);
+      for (let c = 0; c < u.length; c++)
+        u[c] = (Math.random() * 2 - 1) * (1 - c / u.length) ** 3;
+      const c = jt.createBufferSource(),
+        f = jt.createBiquadFilter(),
+        h = jt.createGain();
+      (c.buffer = l),
+        (f.type = "highpass"),
+        (f.frequency.value = 5e3),
+        (h.gain.value = 0.4),
+        c.connect(f),
+        f.connect(h),
+        h.connect(i),
+        c.start(r);
+    },
   };
 const _C = new Set(["ArrowDown", "PageUp", "PageDown", "Home", "End"]),
   EC = 1.44,
@@ -11386,7 +11529,7 @@ class AC {
       (this.inputRouter = new Ww(this.game, this.camera, {
         onPlay: () => this.playOn(),
         onRevive: () => this.revive(),
-        onToggleMute: () => ki.toggleMuted(),
+        onToggleMute: () => this.handleMuteTap(),
       })),
       (this.frameLoop = new jw((u) => this.frame(u)));
   }
@@ -11408,6 +11551,72 @@ class AC {
   paused = !1;
   unsubscribeSound = () => {};
   unsubscribeBestScore = () => {};
+  muteTapTimes = [];
+  // the sound setting as it was before the egg was found; ten taps would
+  // otherwise leave the game on the opposite setting from the one it started on
+  muteBeforeEgg = null;
+  easterEgg = null;
+  // ten quick taps on the speaker open the easter egg. A pause longer than
+  // EGG_TAP_GAP starts the count again, so idly poking the icon never gets
+  // there: only a burst does
+  handleMuteTap() {
+    if (this.easterEgg) return;
+    const i = ki.getSnapshot(),
+      l = performance.now(),
+      u = this.muteTapTimes;
+    // a pause longer than EGG_TAP_GAP starts a fresh burst, and a fresh burst
+    // remembers the setting it began on
+    if (!u.length || l - u[u.length - 1] > EGG_TAP_GAP)
+      (this.muteTapTimes = []), (this.muteBeforeEgg = i);
+    this.muteTapTimes.push(l);
+    // every tap flips the switch, so ten of them end where they began
+    ki.setMuted(!i);
+    this.muteTapTimes.length >= EGG_TAPS &&
+      ((this.muteTapTimes = []), this.openEasterEgg());
+  }
+  openEasterEgg() {
+    this.easterEgg || ((this.easterEgg = { t: 0 }), kh.chime());
+  }
+  closeEasterEgg() {
+    this.easterEgg = null;
+    // put the sound switch back where the player left it, whatever the ten taps
+    // did to it on the way here
+    this.muteBeforeEgg !== null &&
+      (ki.setMuted(this.muteBeforeEgg), (this.muteBeforeEgg = null));
+  }
+  // both buttons are a choice: switch the mode, or stay
+  chooseEasterEgg(i) {
+    this.closeEasterEgg();
+    if (!i) return;
+    kh.play("swoosh");
+    // the mode is read from the URL at start-up, so switching is a reload into
+    // the same page with (or without) ?royale
+    window.setTimeout(() => {
+      const l = new URL(window.location.href),
+        u = new URLSearchParams(l.search);
+      this.royale.active ? u.delete("royale") : u.set("royale", "");
+      const c = u.toString().replace(/(^|&)royale=(?=&|$)/, "$1royale");
+      window.location.assign(`${l.pathname}${c ? `?${c}` : ""}${l.hash}`);
+    }, 180);
+  }
+  // the card's two buttons in world units, for the gates
+  eggButtons() {
+    const i = eggLayout();
+    return {
+      x: 0,
+      switchY: i.centreY + i.yesY,
+      notNowY: i.centreY + i.noY,
+      w: EGG_BUTTON_WIDTH,
+      h: EGG_BUTTON_HEIGHT,
+    };
+  }
+  easterEggPointer(i, l) {
+    const u = this.camera.screenToWorld(i, l),
+      c = this.eggButtons();
+    vr(u.x, u.y, c.x, c.switchY, c.w, c.h)
+      ? this.chooseEasterEgg(!0)
+      : vr(u.x, u.y, c.x, c.notNowY, c.w, c.h) && this.chooseEasterEgg(!1);
+  }
   playOn() {
     (this.paused = !1), this.game.restart();
   }
@@ -11425,6 +11634,7 @@ class AC {
       (this.unsubscribeSound = this.game.onSound((l) => kh.play(l))),
       (this.unsubscribeBestScore = this.game.onBestScoreChanged(kw)),
       (window.__game = this.game),
+      (window.__ui = this),
       window.addEventListener("resize", this.handleResize),
       window.addEventListener("keydown", this.handleKeyDown),
       document.addEventListener(
@@ -11475,6 +11685,12 @@ class AC {
     // a held key keeps auto-repeating: the repeat events must not flap again
     // (which would send the bird off the top of the screen) nor re-toggle pause
     if (i.repeat) return;
+    if (this.easterEgg) {
+      i.code === "Enter" || i.code === "Space" || i.code === "ArrowUp"
+        ? (i.preventDefault(), this.chooseEasterEgg(!0))
+        : (i.code === "Escape" || i.code === "KeyN") && this.chooseEasterEgg(!1);
+      return;
+    }
     if (i.code === "KeyP") {
       i.preventDefault(), (this.paused = !this.paused);
       return;
@@ -11492,6 +11708,10 @@ class AC {
   };
   handlePointerDown = (i) => {
     if (this.paused) return;
+    if (this.easterEgg) {
+      this.easterEggPointer(i.clientX, i.clientY);
+      return;
+    }
     this.inputRouter.handlePointerDown(i.clientX, i.clientY),
       this.tryCapturePointer(i.pointerId);
   };
@@ -11506,13 +11726,15 @@ class AC {
     this.inputRouter.handlePointerMove(i.clientX, i.clientY);
   };
   handlePointerUp = (i) => {
-    this.paused || this.inputRouter.handlePointerUp(i.clientX, i.clientY);
+    (this.paused || this.easterEgg) ||
+      this.inputRouter.handlePointerUp(i.clientX, i.clientY);
   };
   handlePointerCancel = () => {
     this.inputRouter.handlePointerCancel();
   };
   frame = (i) => {
     const l = (i - this.lastTime) / 1e3;
+    this.easterEgg && (this.easterEgg.t += Math.min(Math.max(l, 0), 0.1));
     if (((this.lastTime = i), this.paused)) this.timestep.reset();
     else {
       const c = this.timestep.advance(l);
@@ -11551,6 +11773,15 @@ class AC {
           this.reviveAvailable(),
         ),
         f && ww(this.ctx, f, this.camera.frameW, this.camera.frameH),
+        this.easterEgg &&
+          eggDraw(
+            this.ctx,
+            this.renderer,
+            this.camera.frameW,
+            this.camera.frameH,
+            this.easterEgg.t,
+            this.royale.active,
+          ),
         // a frozen scene looks like a crash otherwise: label the pause state
         this.paused &&
           ($(
