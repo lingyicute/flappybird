@@ -15,7 +15,6 @@ printf '%-14s ' single
 out=$(timeout 400 node testing/single.mjs index.html 2>&1)
 if grep -q '"errs": \[\]' <<<"$out"; then echo PASS; else echo FAIL; fails=$((fails+1)); fi
 printf '%-14s ' audit
-out=$(python3 tools/audit.py . 2>&1)
-echo "$(tail -1 <<<"$out")"
+if out=$(python3 tools/audit.py . 2>&1); then echo PASS; else echo FAIL; fails=$((fails+1)); tail -5 <<<"$out"; fi
 echo
 if [ "$fails" -eq 0 ]; then echo "ALL GATES PASS (ENTRY=${ENTRY:-index.html})"; else echo "$fails GATE(S) FAILED"; fi
