@@ -11336,7 +11336,7 @@ class AC {
   unsubscribeSound = () => {};
   unsubscribeBestScore = () => {};
   playOn() {
-    this.game.restart();
+    (this.paused = !1), this.game.restart();
   }
   reviveAvailable() {
     return this.game.state === "gameover" && !this.game.wasRevived;
@@ -11406,7 +11406,7 @@ class AC {
       i.preventDefault(), (this.paused = !this.paused);
       return;
     }
-    this.inputRouter.handleKeyDown(i.code);
+    this.paused || this.inputRouter.handleKeyDown(i.code);
   };
   handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
@@ -11418,6 +11418,7 @@ class AC {
       this.frameLoop.restart();
   };
   handlePointerDown = (i) => {
+    if (this.paused) return;
     this.inputRouter.handlePointerDown(i.clientX, i.clientY),
       this.tryCapturePointer(i.pointerId);
   };
@@ -11432,7 +11433,7 @@ class AC {
     this.inputRouter.handlePointerMove(i.clientX, i.clientY);
   };
   handlePointerUp = (i) => {
-    this.inputRouter.handlePointerUp(i.clientX, i.clientY);
+    this.paused || this.inputRouter.handlePointerUp(i.clientX, i.clientY);
   };
   handlePointerCancel = () => {
     this.inputRouter.handlePointerCancel();
@@ -11477,6 +11478,24 @@ class AC {
           this.reviveAvailable(),
         ),
         f && ww(this.ctx, f, this.camera.frameW, this.camera.frameH),
+        // a frozen scene looks like a crash otherwise: label the pause state
+        this.paused &&
+          ($(
+            this.ctx,
+            "PAUSED",
+            -this.camera.frameW / 2 + 0.08,
+            -0.62,
+            0.075,
+            "left",
+          ),
+          $(
+            this.ctx,
+            "P TO RESUME",
+            -this.camera.frameW / 2 + 0.08,
+            -0.69,
+            0.045,
+            "left",
+          )),
         this.camera.restoreContext(this.ctx);
     }
   };
