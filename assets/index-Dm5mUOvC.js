@@ -9184,6 +9184,12 @@ const Se = {
     fallCapV3: 1.5,
     fallCapV4: 2.2,
     lowestHeight: -0.975,
+    // the bird may climb to the very top of the playfield, but no further. The
+    // ceiling sits just below the highest reachable pipe opening (pipeMaxY +
+    // halfGap + radius = 1.103): a bird pinned to the ceiling still overlaps the
+    // top pipe, so holding flap cannot become a way to skip the pipes. The sprite
+    // stays fully inside the frame (1.09 + radius < frameH / 2)
+    highestHeight: 1.09,
     radius: 0.068,
     displacement: 0.01,
     speed: 0.6,
@@ -9214,6 +9220,7 @@ const $v = Uh(Ne(Se.gravity)),
   Qv = Ne(Se.fallCapV3),
   Zv = Ne(Se.fallCapV4),
   Gh = Ne(Se.lowestHeight),
+  Hh = Ne(Se.highestHeight),
   Ci = Ne(Se.radius),
   qv = Ne(Se.displacement),
   Jv = Ne(Se.speed),
@@ -10079,7 +10086,8 @@ class au {
           this.currentState === "play" &&
             ((this.deathCause = "ground"),
             this.emitSound("hit"),
-            this.transition("gameover")));
+            this.transition("gameover"))),
+        this.birdY > Hh && ((this.birdY = Hh), (this.birdVy = 0));
     } else
       (this.birdY = Ne(Math.sin(this.elapsed * fE) * dE)),
         (this.birdVy = 0),
