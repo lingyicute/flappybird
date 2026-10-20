@@ -25,8 +25,5 @@ let st;
 for (let i=0;i<60;i++) { st = await page.evaluate(()=>window.__game.state); if (st==='gameover') break; await page.waitForTimeout(200); }
 await page.waitForTimeout(2200);
 await page.screenshot({ path: 'testing/s-gameover.png' });
-await page.click('a.navbar__link[href="/about"]');
-await page.waitForTimeout(500);
-await page.screenshot({ path: 'testing/s-about.png' });
 console.log(JSON.stringify({ state: await page.evaluate(()=>window.__game.state), best: await page.evaluate(()=>window.__game.bestScore), errs }, null, 2));
 await browser.close(); server.close();
