@@ -11397,13 +11397,16 @@ class AC {
       this.canvas.style.height !== u && (this.canvas.style.height = u);
   };
   handleKeyDown = (i) => {
+    const l = i.code === "Space" || i.code === "ArrowUp";
+    if (l || (this.game.state === "play" && _C.has(i.code))) i.preventDefault();
+    // a held key keeps auto-repeating: the repeat events must not flap again
+    // (which would send the bird off the top of the screen) nor re-toggle pause
+    if (i.repeat) return;
     if (i.code === "KeyP") {
       i.preventDefault(), (this.paused = !this.paused);
       return;
     }
-    (i.code === "Space" || i.code === "ArrowUp") && i.preventDefault(),
-      this.game.state === "play" && _C.has(i.code) && i.preventDefault(),
-      this.inputRouter.handleKeyDown(i.code);
+    this.inputRouter.handleKeyDown(i.code);
   };
   handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
