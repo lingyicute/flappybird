@@ -10909,6 +10909,7 @@ class lw {
   bots = [];
   feed = [];
   stepCount = 0;
+  fieldSource = null;
   constructor(i, l, u) {
     const c = new Set(u ? [u] : []),
       f = (KE - hh) / (wa - 1);
@@ -10929,6 +10930,44 @@ class lw {
       const l = i.advance(this.stepCount);
       l && this.feed.push({ ...l, step: this.stepCount });
     }
+    this.applyResync();
+  }
+  // A revive throws the player's pipes away and deals a fresh course, while
+  // every bot keeps flying its own copy of the old one. From then on the birds
+  // cross the pipes that are on screen without dying, because the pipes they
+  // are really dodging are the ones in their own copy. Copying the new field
+  // into each survivor, shifted by the slot it is drawn at, puts the two back
+  // in phase: a bird then meets exactly the pipe drawn next to it.
+  resync(i) {
+    (this.fieldSource = i), this.applyResync();
+  }
+  applyResync() {
+    const i = this.fieldSource;
+    if (!i || i.pipes.length === 0) return;
+    let l = !1;
+    for (const u of this.bots) {
+      if (!u.needsSync) continue;
+      if (u.dead) {
+        u.needsSync = !1;
+        continue;
+      }
+      if (!u.hopped) {
+        // still in the bus: it picks the new course up once it hops off
+        l = !0;
+        continue;
+      }
+      const c = u.hopStep * Si;
+      (u.game.pipes = i.pipes.map((f) => ({
+        x: f.x + c,
+        gapY: f.gapY,
+        halfGap: f.halfGap,
+        passed: f.passed,
+      }))),
+        (u.game.spawnCount = i.spawnCount),
+        (u.game.prng.state = i.prng.state),
+        (u.needsSync = !1);
+    }
+    l || (this.fieldSource = null);
   }
   botNames() {
     return this.bots.map((i) => i.name);
@@ -10995,6 +11034,7 @@ class dw {
       // only a fresh run (getready -> play) opens a new field. A revive comes
       // from "gameover" and must keep the race going: rebuilding it would bring
       // every eliminated bird back to life and wipe the elimination feed
+      const c = this.prevState === "gameover";
       this.prevState === "getready" || !this.match
         ? this.beginMatch()
         : (this.placement = null);
@@ -11004,6 +11044,13 @@ class dw {
         this.winAtStep === null &&
           l.aliveBotCount() === 0 &&
           (this.winAtStep = l.steps));
+      // the course has just been dealt again: put every survivor back on it
+      c &&
+        l &&
+        (l.bots.forEach((u) => {
+          u.dead || (u.needsSync = !0);
+        }),
+        l.resync(this.game));
     } else
       i === "gameover" &&
         this.prevState === "play" &&
