@@ -29,7 +29,7 @@ bird_mid = data_uri("sprites/bird-midflap.png", "image/png")
 bird_down = data_uri("sprites/bird-downflap.png", "image/png")
 
 # ------------------------------------------------------------------- CSS ---
-css = open(os.path.join(SITE, "assets/index-CsU9WTOK.css")).read()
+css = open(os.path.join(SITE, "assets/index-CsU9WTOK.css"), encoding="utf-8").read()
 css = re.sub(
     r'src:.*?url[(]/fonts/Jersey10-Regular[.]woff2[)].*?url[(]/fonts/Jersey10-Regular[.]ttf[)][^;]*;',
     f'src: url({font}) format("woff2");',
@@ -39,7 +39,7 @@ css = re.sub(
 assert "/fonts/" not in css, "un-inlined font reference left in CSS"
 
 # -------------------------------------------------------------------- JS ---
-js = open(os.path.join(SITE, "assets/index-Dm5mUOvC.js")).read()
+js = open(os.path.join(SITE, "assets/index-Dm5mUOvC.js"), encoding="utf-8").read()
 repl = [
     ('Nf = "/assets/atlas-D7zSkRSP.webp"', f'Nf = "{atlas}"'),
     ('ci("/sprites/sound-on.png", 14', f'ci("{sound_on}", 14'),
@@ -83,7 +83,7 @@ assert "/audio/" not in js and "/sprites/" not in js and "/assets/" not in js, (
 assert "</script" not in js, "inline script would be terminated early"
 
 # ------------------------------------------------------------------ HTML ---
-html = open(os.path.join(SITE, "dev.html")).read()
+html = open(os.path.join(SITE, "dev.html"), encoding="utf-8").read()
 html = re.sub(r'    <link rel="icon"[^>]*/>\n', "", html)
 html = re.sub(r'    <link rel="manifest"[^>]*/>\n', "", html)
 # the tab icon is inlined too, so the single file keeps the bird favicon
@@ -110,5 +110,7 @@ html = html.replace(
     1,
 )
 assert "/sprites/" not in html and "/assets/" not in html and "/fonts/" not in html
-open(OUT, "w").write(html)
+# write UTF-8 and keep "\n" on every platform, so the output is the same byte
+# stream everywhere (the bundle and dev.html are UTF-8 regardless of the locale)
+open(OUT, "w", encoding="utf-8", newline="\n").write(html)
 print("wrote", OUT, len(html), "bytes")
