@@ -1,0 +1,6 @@
+# dependencies installed for the Playwright gates
+node_modules/
+
+# screenshots / dumps written by the gates and by tools/coverage.mjs
+testing/*.png
+.cov.json
