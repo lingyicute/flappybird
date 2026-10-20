@@ -10970,7 +10970,12 @@ class dw {
     if (!this.active) return;
     const i = this.game.publishedState.state;
     if (i === "play") {
-      this.prevState !== "play" && this.beginMatch();
+      // only a fresh run (getready -> play) opens a new field. A revive comes
+      // from "gameover" and must keep the race going: rebuilding it would bring
+      // every eliminated bird back to life and wipe the elimination feed
+      this.prevState === "getready" || !this.match
+        ? this.beginMatch()
+        : (this.placement = null);
       const l = this.match;
       l &&
         (l.advance(),
