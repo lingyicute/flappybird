@@ -3,7 +3,7 @@
 set -u
 cd "$(dirname "$0")/.."
 fails=0
-for t in verify2 crash flappy hud revive score-font score-limit credit-audio guardrails death-sounds; do
+for t in verify2 crash flappy hud revive score-font score-limit credit-audio easter-egg guardrails death-sounds; do
   printf '%-14s ' "$t"
   out=$(timeout 400 node "testing/$t.mjs" . 2>&1)
   if grep -q 'RESULT: PASS' <<<"$out"; then echo PASS; else echo "FAIL"; fails=$((fails+1)); tail -3 <<<"$out"; fi
