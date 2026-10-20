@@ -9797,12 +9797,13 @@ const Qf = "PLAY",
   ga = 0.075,
   CS = 0.27,
   pr = 0.25,
-  Zf = 0.4,
+  // the score block sits a little lower inside the panel now that the best
+  // column is a single "HIGHEST" line
+  Zf = 0.32,
   qf = 0.2,
-  AS = 0.21,
-  TS = 0.245,
-  RS = 0.17,
-  LS = 0.08,
+  AS = 0.13,
+  // the NEW badge follows the label down, so it stays under "HIGHEST"
+  LS = 0.02,
   NS = -0.17,
   OS = 0.09,
   PS = 0.18,
@@ -9850,8 +9851,8 @@ function kp(r, i, l) {
     nu(r, i, l.score, -pr, Zf, 0.129, "center"),
     $(r, "SCORE", -pr, AS, ga, "center"),
     nu(r, i, l.bestScore, pr, Zf, 0.129, "center"),
-    $(r, "HIGHEST", pr, TS, ga, "center"),
-    $(r, "SCORE", pr, RS, ga, "center"),
+    // one line, level with "SCORE" on the other side of the panel
+    $(r, "HIGHEST", pr, AS, ga, "center"),
     l.isNewBest && i.drawSprite(r, "newBadge", pr, LS),
     $(r, "MEDAL", NS, Jf, OS, "center");
   const u = l.medal ? XS[l.medal] : "medalEmpty";
