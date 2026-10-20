@@ -10221,12 +10221,13 @@ class au {
             this.emitSound("hit"),
             this.transition("gameover"))),
         this.birdY > Hh && ((this.birdY = Hh), (this.birdVy = 0)),
-        // the fall sound starts a moment after "hit" and only once the bird is
-        // descending: never on the same frame as the impact
+        // the fall sound starts once "hit" has died away and only while the bird
+        // is descending: 0.35 s is where the impact is down to ~2 % of its peak,
+        // so the two never sound stacked on top of each other
         this.diePending &&
           !this.birdGrounded &&
           this.birdVy <= 0 &&
-          this.elapsed - this.dieSince >= 0.15 &&
+          this.elapsed - this.dieSince >= 0.35 &&
           ((this.diePending = !1), this.emitSound("die"));
     } else
       (this.birdY = Ne(Math.sin(this.elapsed * fE) * dE)),

@@ -105,7 +105,10 @@ const pass =
   out.pipe.all.length === 2 &&                            // ... and the fall sound later
   out.pipe.all[0] === hit[0] &&
   out.pipe.all[1] !== hit[0] &&                           // a different effect: "die"
-  out.pipe.dieAt !== null && out.pipe.dieAt >= 12 &&      // >= 0.1 s after the hit, not together
+  // "hit" is still at ~80 % of its peak a tenth of a second in, so a fall sound
+  // that starts that early sounds like one stacked effect; by 0.3 s it is down
+  // to ~11 % and by 0.35 s to ~2 %, which is where the gap has to be
+  out.pipe.dieAt !== null && out.pipe.dieAt >= 36 &&
   out.pipe.dieAt <= 120 &&
   out.pipe.dyingSpeedDown && out.pipe.stillAirborne &&
   out.ground.state === 'gameover' && out.ground.cause === 'ground' &&
