@@ -9994,6 +9994,8 @@ class au {
   pendingPasses = 0;
   revivedAtStep = null;
   deathCause = null;
+  diePending = !1;
+  dieSince = 0;
   soundListeners = new Set();
   bestScoreListeners = new Set();
   constructor(i = 0) {
@@ -10045,6 +10047,7 @@ class au {
       (this.prevBirdY = this.birdY),
       (this.prevBirdRot = this.birdRot),
       (this.deathCause = null),
+      (this.diePending = !1),
       this.emitSound("swoosh"),
       this.transition("play"));
   }
@@ -10083,11 +10086,20 @@ class au {
           ((this.birdY = Gh + Ci),
           (this.birdVy = 0),
           (this.birdGrounded = !0),
+          // the bird is already down: there is no fall left to hear
+          (this.diePending = !1),
           this.currentState === "play" &&
             ((this.deathCause = "ground"),
             this.emitSound("hit"),
             this.transition("gameover"))),
-        this.birdY > Hh && ((this.birdY = Hh), (this.birdVy = 0));
+        this.birdY > Hh && ((this.birdY = Hh), (this.birdVy = 0)),
+        // the fall sound starts a moment after "hit" and only once the bird is
+        // descending: never on the same frame as the impact
+        this.diePending &&
+          !this.birdGrounded &&
+          this.birdVy <= 0 &&
+          this.elapsed - this.dieSince >= 0.15 &&
+          ((this.diePending = !1), this.emitSound("die"));
     } else
       (this.birdY = Ne(Math.sin(this.elapsed * fE) * dE)),
         (this.birdVy = 0),
@@ -10171,6 +10183,7 @@ class au {
       (this.passSteps = []),
       (this.pendingPasses = 0),
       (this.deathCause = null),
+      (this.diePending = !1),
       (this.birdY = 0),
       (this.birdGrounded = !1),
       (this.pipes = []),
@@ -10207,7 +10220,9 @@ class au {
       if (l !== null) {
         (this.deathCause = l === "top" ? "pipeTop" : "pipeBottom"),
           this.emitSound("hit"),
-          this.emitSound("die"),
+          // "die" is the sound of the fall, not of the impact: it is played
+          // further down, once the bird is really on its way down
+          ((this.diePending = !0), (this.dieSince = this.elapsed)),
           this.transition("gameover");
         return;
       }
@@ -10241,7 +10256,8 @@ class au {
       (this.prevPipeScroll = this.pipeScroll),
       (this.pipes = []),
       (this.score = 0),
-      (this.isNewBest = !1);
+      (this.isNewBest = !1),
+      (this.diePending = !1);
   }
   transition(i) {
     if (i === "gameover" && this.score > this.bestScore) {
