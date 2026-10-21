@@ -37,9 +37,11 @@ assert "Jersey10-Regular" not in css, "un-inlined font reference left in CSS"
 # -------------------------------------------------------------------- JS ---
 js = open(os.path.join(SITE, "assets/index-Dm5mUOvC.js"), encoding="utf-8").read()
 
+# The font is deliberately not in this map: the stylesheet declares
+# @font-face Jersey10 and owns the one and only copy of the font file. The
+# bundle asks for that face by name, so the font is inlined exactly once.
 asset_map = {
     "assets/atlas-D7zSkRSP.webp": atlas,
-    "fonts/Jersey10-Regular.woff2": font,
     "sprites/logo.png": logo,
     "sprites/sound-on.png": data_uri("sprites/sound-on.png", "image/png"),
     "sprites/sound-off.png": data_uri("sprites/sound-off.png", "image/png"),
