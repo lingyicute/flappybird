@@ -1146,10 +1146,6 @@ class FlappyGame {
     return this.deathCause;
   }
 
-  get durationSteps() {
-    return this.playStep;
-  }
-
   get currentSeed() {
     return this.runSeed;
   }
@@ -1799,8 +1795,8 @@ class RoyaleMatch {
   stepCount = 0;
   fieldSource = null;
 
-  constructor(seed, simVersion, reservedName) {
-    const usedNames = new Set(reservedName ? [reservedName] : []);
+  constructor(seed, simVersion) {
+    const usedNames = new Set();
     const hopStride = (LAST_HOP_STEP - FIRST_HOP_STEP) / (ROYALE_BOT_COUNT - 1);
     for (let i = 0; i < ROYALE_BOT_COUNT; i += 1) {
       const rng = createBotRng(seed, i);
@@ -1995,7 +1991,7 @@ class RoyaleController {
   }
 
   beginMatch() {
-    this.match = new RoyaleMatch(this.game.currentSeed, this.game.runSimVersion, null);
+    this.match = new RoyaleMatch(this.game.currentSeed, this.game.runSimVersion);
     this.placement = null;
     this.winAtStep = null;
   }
@@ -2104,7 +2100,7 @@ class Camera {
   dpr = 1;
   maxFrameW;
 
-  handleResize(viewW, viewH, dpr, safeBottomPx) {
+  handleResize(viewW, viewH, dpr, safeBottomPx = 0) {
     this.dpr = dpr;
     this.canvasW = Math.max(1, Math.round(viewW * dpr));
     this.canvasH = Math.max(1, Math.round(viewH * dpr));
