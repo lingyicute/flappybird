@@ -225,7 +225,6 @@ const imageSprite = (src, pxW, pxH, anchorX = 0.5, anchorY = 0.5) => ({
 });
 
 const ATLAS_URL = "./assets/atlas-D7zSkRSP.webp";
-const FONT_URL = "./fonts/Jersey10-Regular.woff2";
 const LOGO_URL = "./sprites/logo.png";
 
 const SPRITES = {
@@ -320,10 +319,15 @@ class SpriteRenderer {
   loaded = false;
 
   async loadAll() {
-    const fontTask = new FontFace("Jersey10", `url(${FONT_URL})`)
-      .load()
-      .then((face) => {
-        document.fonts.add(face);
+    // The stylesheet already declares @font-face Jersey10, so loading that face
+    // is all it takes. Registering a second FontFace here would put the very
+    // same font file into the single-file release a second time.
+    const fontTask = document.fonts
+      .load("100px Jersey10")
+      .then((faces) => {
+        if (!faces.length) {
+          console.warn("Jersey10 font not available, falling back to sans-serif");
+        }
       })
       .catch((err) => {
         console.warn("Failed to load Jersey10 font, falling back to sans-serif", err);
