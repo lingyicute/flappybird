@@ -1,9 +1,10 @@
 // Verify the single-file build inside a sandboxed cross-origin iframe
 import http from 'node:http';
 import fs from 'node:fs';
+import path from 'node:path';
 import { chromium } from 'playwright';
 
-const FILE = 'index.html';
+const FILE = path.resolve(process.argv[2] ?? 'index.html');
 const A = 8191, B = 8192;
 const inner = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
@@ -28,19 +29,27 @@ page.on('request', (r) => {
   if (!u.startsWith('http://127.0.0.1:' + A) && !u.startsWith('http://127.0.0.1:' + B) && !u.startsWith('data:')) reqs.push(u);
 });
 await page.goto(`http://127.0.0.1:${A}/`, { waitUntil: 'load' });
-await page.waitForTimeout(4500);
 
 const frame = page.frames().find((f) => f !== page.mainFrame());
+await frame.waitForFunction('!!window.__game && document.querySelector(".loading-overlay")?.dataset.loaded === "true"', null, { timeout: 20000 });
 const info = await frame.evaluate(() => ({
   hasGame: !!window.__game,
   state: window.__game?.state ?? null,
   canvas: !!document.querySelector('canvas'),
   nav: [...document.querySelectorAll('.navbar__link')].map((a) => a.textContent),
 }));
-// fly a few flaps and check the score panel updates
+// fly a few flaps and check the simulation advances cleanly
 for (let i = 0; i < 5; i++) { await frame.evaluate(() => window.__game.flap()); await page.waitForTimeout(250); }
 await page.waitForTimeout(500);
 info.afterFlaps = await frame.evaluate(() => ({ state: window.__game.state, score: window.__game.score }));
 await page.screenshot({ path: 'testing/single-file.png' });
 console.log(JSON.stringify({ info, errs, reqs }, null, 2));
+const pass =
+  info.hasGame &&
+  info.canvas &&
+  info.nav.length === 0 &&
+  info.afterFlaps.state === 'play' &&
+  errs.length === 0 &&
+  reqs.length === 0;
+console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await b.close(); inner.close(); outer.close();

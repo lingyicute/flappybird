@@ -10,32 +10,42 @@ const server = http.createServer((req,res)=>{ let p=decodeURIComponent(new URL(r
 await new Promise(r=>server.listen(PORT,'127.0.0.1',r));
 const origin = `http://127.0.0.1:${PORT}`;
 const browser = await chromium.launch({ args:['--no-sandbox','--disable-dev-shm-usage','--mute-audio'] });
+const external = new Set(), errors = [];
 const out = {};
 
-// ---- 1. human-style autopilot ------------------------------------------
-{
-  const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
-  const external = new Set();
-  page.on('request', r=>{ if(!r.url().startsWith(origin) && !r.url().startsWith('data:')) external.add(r.url()); });
-  await page.goto(`${origin}/`, { waitUntil:'load' });
-  await page.waitForFunction('!!window.__game', null, { timeout: 20000 });
-  await page.waitForTimeout(1000);
+const flyAutopilot = async (page, targetScore) => {
   const box = await (await page.$('canvas')).boundingBox();
-  const cx = box.x + box.width/2, cy = box.y + box.height/2;
+  const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   await page.mouse.click(cx, cy);
   const t0 = Date.now();
   let flaps = 0, best = 0, s = null;
   while (Date.now() - t0 < 40000) {
-    s = await page.evaluate(() => ({ state: window.__game.state, score: window.__game.score, best: window.__game.bestScore, birdY: window.__game.birdY, pipes: window.__game.pipes.map(p=>({x:p.x, gapY:p.gapY, halfGap:p.halfGap})) }));
+    s = await page.evaluate(() => ({
+      state: window.__game.state, score: window.__game.score, best: window.__game.bestScore,
+      birdY: window.__game.birdY,
+      pipes: window.__game.pipes.map((p) => ({ x: p.x, gapY: p.gapY, halfGap: p.halfGap })),
+    }));
     if (s.state !== 'play') break;
     best = Math.max(best, s.score);
-    if (s.score >= 5) break;
-    const pipe = s.pipes.find(p => p.x > -0.02);
-    const target = pipe ? pipe.gapY - (pipe.halfGap ? pipe.halfGap*0.3 : 0) : 0.05;
-    if (s.birdY < target - 0.03) { await page.mouse.click(cx, cy); flaps++; }
+    if (s.score >= targetScore) break;
+    const pipe = s.pipes.find((p) => p.x > -20000);
+    const target = pipe ? pipe.gapY - (pipe.halfGap ? pipe.halfGap * 0.3 : 0) : 50000;
+    if (s.birdY < target - 30000) { await page.mouse.click(cx, cy); flaps++; }
     await page.waitForTimeout(35);
   }
-  out.autopilot = { state: s.state, score: s.score, best, flaps, seconds: Math.round((Date.now()-t0)/1000) };
+  return { state: s.state, score: s.score, best, flaps, seconds: Math.round((Date.now() - t0) / 1000) };
+};
+
+// ---- 1. human-style autopilot ------------------------------------------
+{
+  const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
+  page.on('request', (r) => { if (!r.url().startsWith(origin) && !r.url().startsWith('data:')) external.add(r.url()); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  page.on('console', (m) => { const t = m.text(); if (m.type() === 'error' && !/Failed to load|404/.test(t)) errors.push('console: ' + t); });
+  await page.goto(`${origin}/`, { waitUntil: 'load' });
+  await page.waitForFunction('!!window.__game', null, { timeout: 20000 });
+  await page.waitForTimeout(1000);
+  out.autopilot = await flyAutopilot(page, 5);
   out.autopilotExternal = [...external];
   await page.screenshot({ path: 'testing/offline-autopilot.png' });
   await page.close();
@@ -44,12 +54,13 @@ const out = {};
 // ---- 2. royale bots (same engine, self-playing) -------------------------
 {
   const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
-  await page.goto(`${origin}/?royale`, { waitUntil:'load' });
+  page.on('request', (r) => { if (!r.url().startsWith(origin) && !r.url().startsWith('data:')) external.add(r.url()); });
+  page.on('pageerror', (e) => errors.push('pageerror(royale): ' + e.message));
+  page.on('console', (m) => { const t = m.text(); if (m.type() === 'error' && !/Failed to load|404/.test(t)) errors.push('console(royale): ' + t); });
+  await page.goto(`${origin}/?royale`, { waitUntil: 'load' });
   await page.waitForFunction('!!window.__royale', null, { timeout: 20000 });
   await page.waitForTimeout(1000);
-  const box = await (await page.$('canvas')).boundingBox();
-  await page.mouse.click(box.x + box.width/2, box.y + box.height/2);
-  await page.waitForTimeout(12000);
+  await flyAutopilot(page, 5);
   out.royale = await page.evaluate(() => ({
     steps: window.__royale.matchSteps(),
     alive: window.__royale.aliveBots(),
@@ -59,5 +70,14 @@ const out = {};
   await page.screenshot({ path: 'testing/offline-royale.png' });
   await page.close();
 }
+
+out.errors = errors;
 console.log(JSON.stringify(out, null, 2));
-await browser.close(); server.close();
+const pass =
+  out.autopilot.best >= 1 &&
+  out.royale.steps > 400 &&
+  external.size === 0 &&
+  errors.length === 0;
+console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
+await browser.close();
+server.close();
