@@ -1257,15 +1257,18 @@ class FlappyGame {
           ? UPWARD_TILT_RAD
           : Math.max(NOSE_DOWN_RAD, UPWARD_TILT_RAD + toWorld(this.birdVy) * TILT_VELOCITY_FACTOR);
     } else if (this.currentState === "gameover") {
-      this.birdRot = this.birdGrounded
-        ? NOSE_DOWN_RAD
-        : Math.max(
-            NOSE_DOWN_RAD,
-            Math.min(
-              UPWARD_TILT_RAD + toWorld(this.birdVy) * TILT_VELOCITY_FACTOR,
-              this.prevBirdRot - CRASH_SPIN_STEP,
-            ),
-          );
+      if (this.birdGrounded) {
+        this.birdRot = NOSE_DOWN_RAD;
+        this.prevBirdRot = NOSE_DOWN_RAD;
+      } else {
+        this.birdRot = Math.max(
+          NOSE_DOWN_RAD,
+          Math.min(
+            UPWARD_TILT_RAD + toWorld(this.birdVy) * TILT_VELOCITY_FACTOR,
+            this.prevBirdRot - CRASH_SPIN_STEP,
+          ),
+        );
+      }
     } else {
       this.birdRot = 0;
     }
@@ -2708,9 +2711,7 @@ class GameApp {
     }
     this.lastTime = timestamp;
 
-    if (this.paused) {
-      this.timestep.reset();
-    } else {
+    if (!this.paused) {
       const steps = this.timestep.advance(dt);
       for (let i = 0; i < steps; i++) {
         this.game.step(SIM_DT);
