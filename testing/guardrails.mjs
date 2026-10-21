@@ -105,7 +105,56 @@ const out = {};
   await page.keyboard.press('KeyP');
   await page.waitForTimeout(400);
   out.resumed = (await y()) !== y0;
-  out.pauseOk = out.pausedInputOk && out.pausedLabel > 60 && out.pausedStillFrozen && out.resumed;
+  // pausing must also preserve sub-step alpha (never rewind rendered pose to prevBirdRot/prevBirdY)
+  out.pauseInterp = await page.evaluate(() => {
+    const ui = window.__ui, g = window.__game;
+    ui.frameLoop.stop();
+    g.restart();
+    g.flap();
+    for (let i = 0; i < 30; i++) g.step(1 / 120);
+    g.birdY = Math.round(-0.80 * 1048576);
+    while (!g.birdGrounded) g.step(1 / 120);
+    // Simulate a 240 Hz display (two 3.5 ms frames < 1/120 s) followed immediately by pause
+    ui.timestep.accumulator = 0.05 * (1 / 120);
+    const t0 = performance.now();
+    ui.lastTime = t0;
+    ui.frame(t0 + 3.5);
+    ui.frame(t0 + 7.0);
+    const alphaBeforePause = ui.timestep.alpha;
+    ui.paused = true;
+    ui.frame(t0 + 23.7);
+    const alphaAfterPause = ui.timestep.alpha;
+    const c = document.querySelector('canvas');
+    const x0 = Math.round(c.width / 2 - 100), y0 = Math.round(c.height * 0.74);
+    const w = 200, h = Math.round(c.height * 0.255);
+    const d = c.getContext('2d').getImageData(x0, y0, w, h).data;
+    const fams = [[248, 183, 51], [224, 128, 44], [252, 56, 0]];
+    let minx = 1e9, miny = 1e9, maxx = -1, maxy = -1, n = 0;
+    for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+      const o = (py * w + px) * 4, rgb = [d[o], d[o + 1], d[o + 2]];
+      let hit = -1;
+      for (let f = 0; f < fams.length; f++) {
+        const t = fams[f];
+        const ks = []; for (let i = 0; i < 3; i++) if (t[i]) ks.push(rgb[i] / t[i]);
+        const k = ks.reduce((a, b) => a + b, 0) / ks.length;
+        if (k < 0.33 || k > 1.05) continue;
+        if (Math.abs(rgb[0] - k * t[0]) <= 18 && Math.abs(rgb[1] - k * t[1]) <= 18 && Math.abs(rgb[2] - k * t[2]) <= 18) { hit = f; break; }
+      }
+      if (hit < 0) continue;
+      n++;
+      if (px < minx) minx = px; if (px > maxx) maxx = px;
+      if (py < miny) miny = py; if (py > maxy) maxy = py;
+    }
+    const bw = maxx - minx + 1, bh = maxy - miny + 1;
+    return {
+      alphaPreserved: Math.abs(alphaAfterPause - alphaBeforePause) < 1e-9,
+      w: bw,
+      h: bh,
+      beakDown: bh > bw * 1.15 && n > 90 && bw < 40 && bh > 25,
+    };
+  });
+  out.pauseOk = out.pausedInputOk && out.pausedLabel > 60 && out.pausedStillFrozen
+    && out.resumed && out.pauseInterp.alphaPreserved && out.pauseInterp.beakDown;
   await page.close();
 }
 
@@ -163,8 +212,9 @@ const out = {};
       && window.__ui.camera.frameW > 0
       && Number.isFinite(window.__ui.camera.pixelsPerUnit)
       && window.__ui.camera.pixelsPerUnit > 0;
-    window.__ui.camera.handleResize(1024, 768, 1, 0);
-    return { state: g.state, cause: g.runDeathCause, resizeZero };
+    window.__ui.camera.handleResize(1024, 768, 1);
+    const defaultSafeBottom = Number.isFinite(window.__ui.camera.safeBottomY);
+    return { state: g.state, cause: g.runDeathCause, resizeZero: resizeZero && defaultSafeBottom };
   });
   out.highPipeOk = out.highPipe.state === 'gameover'
     && out.highPipe.cause === 'pipeTop'

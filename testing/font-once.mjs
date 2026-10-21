@@ -1,4 +1,4 @@
-// The pixel font must be inlined exactly once in the single-file build (the
+// The Jersey10 font must be inlined exactly once in the single-file build (the
 // stylesheet declares it, the bundle must not pull it in a second time) and
 // the canvas really has to draw with it.
 //   node font-once.mjs <siteDir> [singleFileHtml]
@@ -8,7 +8,11 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 const dir = path.resolve(process.argv[2] ?? '.');
-const single = process.argv[3] ?? 'index.html';
+const explicitSingle = process.argv[3];
+const singlePath = path.resolve(dir, explicitSingle ?? 'index.html');
+const servedEntry = explicitSingle
+  ? singlePath
+  : path.join(dir, process.env.ENTRY || 'index.html');
 const PORT = 8391;
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -19,8 +23,8 @@ const MIME = {
 };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  let f = path.join(dir, p);
-  if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, process.env.ENTRY || 'index.html');
+  let f = p === '/' ? servedEntry : path.join(dir, p);
+  if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = servedEntry;
   if (!fs.existsSync(f)) { res.writeHead(404); res.end('nf'); return; }
   res.writeHead(200, { 'content-type': MIME[path.extname(f)] ?? 'application/octet-stream' });
   fs.createReadStream(f).pipe(res);
@@ -29,11 +33,11 @@ await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
 
 const out = {};
 // ------------------------------------------------------- 1. the release file --
-const html = fs.readFileSync(path.resolve(dir, single), 'utf8');
+const html = fs.readFileSync(singlePath, 'utf8');
 out.fontPayloads = (html.match(/data:font\/woff2;base64,/g) || []).length;
-// the bundle must not reference the font file any more: the stylesheet owns it
+// the bundle must not reference the font file any more (with or without leading / or ./)
 const bundle = fs.readFileSync(path.join(dir, 'assets/index-Dm5mUOvC.js'), 'utf8');
-out.bundleFontRefs = (bundle.match(/\/fonts\//g) || []).length;
+out.bundleFontRefs = (bundle.match(/\bfonts\/|Jersey10-Regular|\.woff2\b/g) || []).length;
 
 // ------------------------------------------------------------ 2. in the page --
 const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage', '--mute-audio'] });
