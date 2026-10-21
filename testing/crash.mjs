@@ -135,6 +135,12 @@ out.shortFallRot = short ? short.rot : null;
 out.shortDeathElapsed = short ? +short.elapsedState.toFixed(3) : null;
 // freeze right away: the game-over overlay fades in at death+1.2 s and would cover
 // the resting bird (it sits behind the REVIVE button in that layout)
+// the crash pose is only drawn one frame after the death: the renderer
+// interpolates between the previous and the current rotation, so the frame
+// right after the hit still shows the bird upright. Let two frames go by
+// before freezing, otherwise the gate measures the last frame from before
+// the crash and the bird looks like it is lying flat.
+await page2.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 await page2.keyboard.press('KeyP');
 await page2.waitForTimeout(120);
 const yFrozen = await page2.evaluate(() => window.__game.birdY);
