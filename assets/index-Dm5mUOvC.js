@@ -502,6 +502,10 @@ class SpriteRenderer {
 const PIPE_SPAWN_LEFT_EDGE = SIM_CONFIG.startX - SPRITES.pipeUp.worldW / 2;
 const LEAD_MARGIN = 0.02;
 const MAX_WORLD_LEAD_X = 0.33;
+const SHAKE_DURATION = 0.45;
+const SHAKE_AMPLITUDE = 0.035;
+const SHAKE_CYCLES = 4;
+const SHAKE_Y_RATIO = 0.7;
 
 function computeWorldLeadX(frameW) {
   return Math.min(Math.max(PIPE_SPAWN_LEFT_EDGE - frameW / 2 - LEAD_MARGIN, 0), MAX_WORLD_LEAD_X);
@@ -514,8 +518,8 @@ const CITY_SCALE = 1.15;
 const CITY_Y_OFFSET = 0.15;
 const CITY_TILE_OVERLAP = 0.01;
 
-function renderWorld(ctx, renderer, snap, frameW, frameH) {
-  renderBackground(ctx, renderer, frameW, frameH);
+function renderWorld(ctx, renderer, snap, frameW, frameH, shake) {
+  renderBackground(ctx, renderer, frameW, frameH, shake);
   const leadX = computeWorldLeadX(frameW);
   ctx.save();
   ctx.translate(-leadX, 0);
@@ -530,10 +534,12 @@ function renderWorld(ctx, renderer, snap, frameW, frameH) {
   ctx.restore();
 }
 
-function renderBackground(ctx, renderer, frameW, frameH) {
+function renderBackground(ctx, renderer, frameW, frameH, shake) {
+  const bleedW = frameW + Math.abs(shake.x) * 2;
+  const bleedH = frameH + Math.abs(shake.y) * 2;
   const scale = Math.max(
-    frameW / SPRITES.background.worldW,
-    frameH / SPRITES.background.worldH,
+    bleedW / SPRITES.background.worldW,
+    bleedH / SPRITES.background.worldH,
   );
   renderer.drawSprite(ctx, "background", 0, 0, { scale });
 }
@@ -552,8 +558,9 @@ function renderCityline(ctx, renderer, scrollX, frameW) {
 
 function renderPipes(ctx, renderer, pipes, frameH) {
   const pipeCapH = SPRITES.pipeUp.worldH;
-  const topY = frameH / 2;
-  const bottomY = -frameH / 2;
+  const overscan = SHAKE_AMPLITUDE * 2;
+  const topY = frameH / 2 + overscan;
+  const bottomY = -frameH / 2 - overscan;
   for (const pipe of pipes) {
     const lowerLip = pipe.gapY - pipe.halfGap;
     const upperLip = pipe.gapY + pipe.halfGap;
@@ -995,13 +1002,13 @@ function renderHomeTopBar(ctx, renderer, bestScore, frameW, frameH, isMuted) {
 
 // --------------------------------------------------- collision & physics ---
 
-const PIPE_CLAMP_MIN_Y = toFixed(-10);
-const PIPE_CLAMP_MAX_Y = toFixed(10);
-
 function checkGroundHit(birdY) {
   return birdY - BIRD_RADIUS < GROUND_Y;
 }
 
+// Lower and upper pipes extend all the way to -Infinity and +Infinity rather
+// than stopping at an arbitrary world-unit height, so climbing far above the
+// frame never skips a pipe and extreme coordinates cannot overflow `dy * dy`.
 function checkPipeHit(birdY, pipe) {
   const left = pipe.x - PIPE_HALF_WIDTH;
   const right = pipe.x + PIPE_HALF_WIDTH;
@@ -1009,14 +1016,16 @@ function checkPipeHit(birdY, pipe) {
   if (Math.abs(dx) >= BIRD_RADIUS) return null;
 
   const lowerLip = pipe.gapY - pipe.halfGap;
-  const clampedLow = Math.max(PIPE_CLAMP_MIN_Y, Math.min(birdY, lowerLip));
-  const dyLow = birdY - clampedLow;
-  if (dx * dx + dyLow * dyLow < BIRD_RADIUS_SQ) return "bottom";
+  const dyLow = Math.max(0, birdY - lowerLip);
+  if (dyLow < BIRD_RADIUS && dx * dx + dyLow * dyLow < BIRD_RADIUS_SQ) {
+    return "bottom";
+  }
 
   const upperLip = pipe.gapY + pipe.halfGap;
-  const clampedHigh = Math.max(upperLip, Math.min(birdY, PIPE_CLAMP_MAX_Y));
-  const dyHigh = birdY - clampedHigh;
-  return dx * dx + dyHigh * dyHigh < BIRD_RADIUS_SQ ? "top" : null;
+  const dyHigh = Math.max(0, upperLip - birdY);
+  return dyHigh < BIRD_RADIUS && dx * dx + dyHigh * dyHigh < BIRD_RADIUS_SQ
+    ? "top"
+    : null;
 }
 
 // ---------------------------------------------------------- SplitMix64 ---
@@ -1341,6 +1350,9 @@ class FlappyGame {
     this.deathCause = null;
     this.diePending = false;
     this.birdY = 0;
+    this.birdRot = 0;
+    this.prevBirdY = 0;
+    this.prevBirdRot = 0;
     this.birdGrounded = false;
     this.pipes = [];
     this.revivedAtStep = null;
@@ -1679,6 +1691,11 @@ class BotPilot {
   pipeOffset = 0;
   prevY = 0;
 
+  resetAim() {
+    this.aimOrdinal = -1;
+    this.pendingFlapStep = null;
+  }
+
   wantsFlap(snap, stepIndex) {
     const aim = this.resolveAim(snap);
     if (aim.aimedPipe && aim.ordinal !== this.aimOrdinal) {
@@ -1831,12 +1848,15 @@ class RoyaleMatch {
 
   resync(game) {
     this.fieldSource = game;
+    for (const bot of this.bots) {
+      if (!bot.dead) bot.needsSync = true;
+    }
     this.applyResync();
   }
 
   applyResync() {
     const source = this.fieldSource;
-    if (!source || source.pipes.length === 0) return;
+    if (!source) return;
     let waitingOnBus = false;
     for (const bot of this.bots) {
       if (!bot.needsSync) continue;
@@ -1849,14 +1869,19 @@ class RoyaleMatch {
         continue;
       }
       const shiftX = bot.hopStep * SCROLL_STEP;
-      bot.game.pipes = source.pipes.map((pipe) => ({
-        x: pipe.x + shiftX,
-        gapY: pipe.gapY,
-        halfGap: pipe.halfGap,
-        passed: pipe.passed,
-      }));
+      bot.game.pipes = source.pipes.map((pipe) => {
+        const x = pipe.x + shiftX;
+        return {
+          x,
+          gapY: pipe.gapY,
+          halfGap: pipe.halfGap,
+          passed: x + PIPE_HALF_WIDTH <= 0,
+        };
+      });
+      bot.game.pipeTimer = source.pipeTimer + bot.hopStep / SIM_HZ;
       bot.game.spawnCount = source.spawnCount;
       bot.game.prng.state = source.prng.state;
+      bot.pilot.resetAim();
       bot.needsSync = false;
     }
     if (!waitingOnBus) this.fieldSource = null;
@@ -1935,16 +1960,11 @@ class RoyaleController {
 
       const match = this.match;
       if (match) {
+        if (revivedFromGameOver) match.resync(this.game);
         match.advance();
         if (this.winAtStep === null && match.aliveBotCount() === 0) {
           this.winAtStep = match.steps;
         }
-      }
-      if (revivedFromGameOver && match) {
-        for (const bot of match.bots) {
-          if (!bot.dead) bot.needsSync = true;
-        }
-        match.resync(this.game);
       }
     } else if (state === "gameover" && this.prevState === "play" && this.match) {
       this.placement = this.winAtStep !== null ? 1 : this.match.aliveBotCount() + 1;
@@ -2096,8 +2116,8 @@ class Camera {
 
   handleResize(viewW, viewH, dpr, safeBottomPx) {
     this.dpr = dpr;
-    this.canvasW = Math.round(viewW * dpr);
-    this.canvasH = Math.round(viewH * dpr);
+    this.canvasW = Math.max(1, Math.round(viewW * dpr));
+    this.canvasH = Math.max(1, Math.round(viewH * dpr));
     this.pixelsPerUnit = Math.min(this.canvasW / this.worldW, this.canvasH / this.worldH);
     this.frameW = Math.min(this.canvasW / this.pixelsPerUnit, this.maxFrameW);
     this.frameH = this.canvasH / this.pixelsPerUnit;
@@ -2154,11 +2174,6 @@ class Camera {
     return { x: pxX / this.pixelsPerUnit, y: -pxY / this.pixelsPerUnit };
   }
 }
-
-const SHAKE_DURATION = 0.45;
-const SHAKE_AMPLITUDE = 0.035;
-const SHAKE_CYCLES = 4;
-const SHAKE_Y_RATIO = 0.7;
 
 class ScreenShake {
   remaining = 0;
@@ -2270,6 +2285,7 @@ class InputRouter {
   game;
   camera;
   actions;
+  pressedGameOverButton = null;
 
   currentGameOverLayout() {
     return computeGameOverLayout(this.camera.frameW, this.camera.safeBottomY);
@@ -2279,33 +2295,43 @@ class InputRouter {
     const world = this.camera.screenToWorld(clientX, clientY);
     const state = this.game.state;
     if (state === "getready") {
+      this.pressedGameOverButton = null;
       if (hitTestSoundToggle(world.x, world.y, this.camera.frameW, this.camera.frameH)) {
         this.actions.onToggleMute();
       } else {
         this.game.flap();
       }
     } else if (state === "play") {
+      this.pressedGameOverButton = null;
       this.game.flap();
+    } else if (state === "gameover") {
+      const hit = hitTestGameOverButtons(world.x, world.y, this.currentGameOverLayout());
+      this.pressedGameOverButton = hit ? hit.kind : null;
     }
   }
 
   handlePointerUp(clientX, clientY) {
-    if (this.game.state !== "gameover") return;
+    const pressed = this.pressedGameOverButton;
+    this.pressedGameOverButton = null;
+    if (this.game.state !== "gameover" || !pressed) return;
     const world = this.camera.screenToWorld(clientX, clientY);
     const hit = hitTestGameOverButtons(world.x, world.y, this.currentGameOverLayout());
-    if (!hit || !this.gameOverButtonsActive()) return;
+    if (!hit || hit.kind !== pressed || !this.gameOverButtonsActive()) return;
     if (hit.kind === "play") this.actions.onPlay();
     else this.actions.onRevive();
+  }
+
+  handlePointerCancel() {
+    this.pressedGameOverButton = null;
   }
 
   handleKeyDown(code) {
     const state = this.game.state;
     if (state === "getready" || state === "play") {
       if (code === "Space" || code === "ArrowUp") this.game.flap();
-    } else if (state === "gameover") {
-      if ((code === "Space" || code === "Enter") && this.gameOverButtonsActive()) {
-        this.actions.onPlay();
-      }
+    } else if (state === "gameover" && this.gameOverButtonsActive()) {
+      if (code === "Space" || code === "Enter") this.actions.onPlay();
+      else if (code === "KeyR") this.actions.onRevive();
     }
   }
 
@@ -2366,13 +2392,26 @@ let audioCtx = null;
 let masterGainNode = null;
 
 const audioEngine = {
-  async init() {
+  ensureContext() {
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return false;
+      audioCtx = new Ctor();
       masterGainNode = audioCtx.createGain();
       masterGainNode.gain.value = MASTER_GAIN;
       masterGainNode.connect(audioCtx.destination);
     }
+    return true;
+  },
+
+  resumeIfNeeded() {
+    if (audioCtx && audioCtx.state !== "running") {
+      audioCtx.resume().catch(() => {});
+    }
+  },
+
+  async init() {
+    if (!this.ensureContext()) return;
     const loads = Object.keys(SOUND_URLS).map(async (name) => {
       try {
         const raw = await (await fetch(SOUND_URLS[name])).arrayBuffer();
@@ -2388,7 +2427,7 @@ const audioEngine = {
     if (soundPrefs.getSnapshot() || !audioCtx || !masterGainNode || !decodedBuffers[name]) {
       return;
     }
-    if (audioCtx.state === "suspended") audioCtx.resume();
+    this.resumeIfNeeded();
     const source = audioCtx.createBufferSource();
     source.buffer = decodedBuffers[name];
     source.connect(masterGainNode);
@@ -2396,8 +2435,8 @@ const audioEngine = {
   },
 
   chime() {
-    if (!audioCtx || !masterGainNode) return;
-    if (audioCtx.state === "suspended") audioCtx.resume();
+    if (!this.ensureContext() || !masterGainNode) return;
+    this.resumeIfNeeded();
     const t0 = audioCtx.currentTime + 0.005;
     const envelope = audioCtx.createGain();
     envelope.gain.setValueAtTime(0, t0);
@@ -2410,7 +2449,7 @@ const audioEngine = {
       [2.76, 0.26, 1.5],
       [5.4, 0.14, 1],
       [8.93, 0.07, 0.6],
-    ].forEach(([harmonic, gain, decay]) => {
+    ].forEach(([harmonic, gain, decay], idx) => {
       const osc = audioCtx.createOscillator();
       const partialGain = audioCtx.createGain();
       osc.type = "sine";
@@ -2419,6 +2458,9 @@ const audioEngine = {
       partialGain.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
       osc.connect(partialGain);
       partialGain.connect(envelope);
+      if (idx === 0) {
+        osc.onended = () => envelope.disconnect();
+      }
       osc.start(t0);
       osc.stop(t0 + decay + 0.05);
     });
@@ -2509,6 +2551,7 @@ class GameApp {
   openEasterEgg() {
     if (!this.easterEgg) {
       this.easterEgg = { t: 0 };
+      this.inputRouter.handlePointerCancel();
       audioEngine.chime();
     }
   }
@@ -2531,7 +2574,8 @@ class GameApp {
       if (this.royale.active) params.delete("royale");
       else params.set("royale", "");
       const query = params.toString().replace(/(^|&)royale=(?=&|$)/, "$1royale");
-      window.location.assign(`${url.pathname}${query ? `?${query}` : ""}${url.hash}`);
+      url.search = query ? `?${query}` : "";
+      window.location.assign(url.href);
     }, 180);
   }
 
@@ -2583,6 +2627,7 @@ class GameApp {
     document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.canvas.addEventListener("pointerdown", this.handlePointerDown);
     this.canvas.addEventListener("pointerup", this.handlePointerUp);
+    this.canvas.addEventListener("pointercancel", this.handlePointerCancel);
     this.handleResize();
     this.lastTime = performance.now();
     this.frameLoop.start();
@@ -2594,6 +2639,7 @@ class GameApp {
     document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
     this.canvas.removeEventListener("pointerup", this.handlePointerUp);
+    this.canvas.removeEventListener("pointercancel", this.handlePointerCancel);
     this.frameLoop.stop();
     this.unsubscribeSound();
     this.unsubscribeBestScore();
@@ -2627,6 +2673,7 @@ class GameApp {
     }
     if (event.code === "KeyP") {
       event.preventDefault();
+      this.inputRouter.handlePointerCancel();
       this.paused = !this.paused;
       return;
     }
@@ -2634,7 +2681,10 @@ class GameApp {
   };
 
   handleVisibilityChange = () => {
-    if (document.visibilityState === "hidden") return;
+    if (document.visibilityState === "hidden") {
+      this.inputRouter.handlePointerCancel();
+      return;
+    }
     this.lastTime = performance.now();
     this.timestep.reset();
     this.frameLoop.restart();
@@ -2660,9 +2710,15 @@ class GameApp {
     }
   };
 
+  handlePointerCancel = () => {
+    this.inputRouter.handlePointerCancel();
+  };
+
   frame = (timestamp) => {
     const dt = (timestamp - this.lastTime) / 1000;
-    if (this.easterEgg) this.easterEgg.t += Math.min(Math.max(dt, 0), 0.1);
+    if (this.easterEgg && !this.paused) {
+      this.easterEgg.t += Math.min(Math.max(dt, 0), 0.1);
+    }
     this.lastTime = timestamp;
 
     if (this.paused) {
@@ -2689,14 +2745,17 @@ class GameApp {
     if (!this.renderer.isLoaded()) return;
 
     this.camera.setupContext(this.ctx);
-    const shake = this.screenShake.advance(dt);
-    this.ctx.translate(shake.x, shake.y);
-    renderWorld(this.ctx, this.renderer, snap, this.camera.frameW, this.camera.frameH);
-
+    const shake = this.screenShake.advance(this.paused ? 0 : dt);
     const royaleView = this.royale.frameView(this.timestep.alpha, snap);
+
+    this.ctx.save();
+    this.ctx.translate(shake.x, shake.y);
+    renderWorld(this.ctx, this.renderer, snap, this.camera.frameW, this.camera.frameH, shake);
     if (royaleView) {
       renderRoyaleWorld(this.ctx, this.renderer, royaleView, this.camera.frameW, snap.elapsed);
     }
+    this.ctx.restore();
+
     renderHud(
       this.ctx,
       this.renderer,
