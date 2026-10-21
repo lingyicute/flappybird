@@ -88,7 +88,14 @@ canvas {
 }
 .loading-overlay[data-loaded="true"] {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+  transition:
+    opacity 0.3s ease,
+    visibility 0s linear 0.3s;
+}
+.loading-overlay[data-loaded="true"] .loading-overlay__spinner {
+  animation: none;
 }
 .loading-overlay__logo {
   image-rendering: pixelated;

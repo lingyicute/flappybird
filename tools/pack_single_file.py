@@ -95,7 +95,7 @@ html = replace_once(
     "</head>",
     f'    <link rel="icon" type="image/png" sizes="96x96" href="{icon}" />\n  </head>',
 )
-for prefix in ("/", "./"):
+for prefix in ("/", "./", "../"):
     for folder in ("sprites/", "assets/", "fonts/", "audio/"):
         assert prefix + folder not in html, f"asset ref {prefix + folder!r} left in HTML"
 
