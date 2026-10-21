@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Pack the build into one self-contained .html file."""
+"""Pack the build into one self-contained .html file.
+Usage: python3 tools/pack_single_file.py [output_html_path]"""
 import base64
 import os
 import re
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = ROOT
-OUT = os.path.join(ROOT, "index.html")
+OUT = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(ROOT, "index.html")
+UNINLINED_REF_RE = re.compile(r"(?<!data:)(?:(?:\.\.?/)?|\b)(?:sprites|audio|assets|fonts)/")
 
 
 def data_uri(path, mime):
@@ -32,7 +35,7 @@ css = re.sub(
     css,
     flags=re.S,
 )
-assert "Jersey10-Regular" not in css, "un-inlined font reference left in CSS"
+assert "Jersey10-Regular" not in css and ".woff2" not in css, "un-inlined font reference left in CSS"
 
 # -------------------------------------------------------------------- JS ---
 js = open(os.path.join(SITE, "assets/index-Dm5mUOvC.js"), encoding="utf-8").read()
@@ -61,14 +64,14 @@ for digit in range(10):
     )
 
 for rel_path, uri in asset_map.items():
-    pattern = re.compile(r'"(?:\./|/)' + re.escape(rel_path) + r'"')
+    pattern = re.compile(r'"(?:\./|/)?' + re.escape(rel_path) + r'"')
     matches = len(pattern.findall(js))
     assert matches == 1, f"expected 1 reference to {rel_path}, found {matches}"
     js = pattern.sub(f'"{uri}"', js)
 
-for prefix in ("/", "./"):
-    for folder in ("audio/", "sprites/", "assets/", "fonts/"):
-        assert prefix + folder not in js, f"asset ref {prefix + folder!r} left in JS"
+m = UNINLINED_REF_RE.search(js)
+assert m is None, f"asset ref {m.group(0)!r} left in JS"
+assert "Jersey10-Regular" not in js and ".woff2" not in js, "font reference left in JS"
 assert "</script" not in js, "inline script would be terminated early"
 
 # ------------------------------------------------------------------ HTML ---
@@ -88,7 +91,7 @@ html = re.sub(
     "",
     html,
 )
-html = re.sub(r'src="(?:\./|/)sprites/logo\.png"', f'src="{logo}"', html)
+html = re.sub(r'src="(?:\./|/)?sprites/logo\.png"', f'src="{logo}"', html)
 html = replace_once(
     html, "</head>", "    <script type=\"module\">\n" + js + "\n    </script>\n  </head>"
 )
@@ -97,9 +100,9 @@ html = replace_once(
     "</head>",
     f'    <link rel="icon" type="image/png" sizes="96x96" href="{icon}" />\n  </head>',
 )
-for prefix in ("/", "./", "../"):
-    for folder in ("sprites/", "assets/", "fonts/", "audio/"):
-        assert prefix + folder not in html, f"asset ref {prefix + folder!r} left in HTML"
+m = UNINLINED_REF_RE.search(html)
+assert m is None, f"asset ref {m.group(0)!r} left in HTML"
+assert "Jersey10-Regular" not in html and ".woff2" not in html, "font reference left in HTML"
 
 open(OUT, "w", encoding="utf-8", newline="\n").write(html)
 print("wrote", OUT, len(html), "bytes")

@@ -1,7 +1,7 @@
 // dump top-level declaration ranges of a bundle as JSON (shared by the analysis tools)
 import { readFileSync } from 'node:fs';
 import * as acorn from 'acorn';
-const src = readFileSync(process.argv[2], 'utf8');
+const src = readFileSync(process.argv[2] ?? 'assets/index-Dm5mUOvC.js', 'utf8');
 const ast = acorn.parse(src, { ecmaVersion:2022, sourceType:'module', allowAwaitOutsideFunction:true, locations:true });
 const out = [];
 for (const st of ast.body) {
