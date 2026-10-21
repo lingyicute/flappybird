@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-orange.svg" alt="License: AGPL-3.0"></a>
-  <a href="./index.html"><img src="https://img.shields.io/badge/Single%20File-273%20KB-blue" alt="Self-contained HTML, approximately 273 KB"></a>
+  <a href="./index.html"><img src="https://img.shields.io/badge/Single%20File-246%20KB-blue" alt="Self-contained HTML, approximately 246 KB"></a>
   <a href="https://github.com/lingyicute/flappybird"><img src="https://img.shields.io/badge/Runtime%20Setup-None-brightgreen" alt="No runtime setup"></a>
   <a href="https://github.com/lingyicute/flappybird"><img src="https://img.shields.io/badge/Network%20Requests-Zero-brightgreen" alt="Zero network requests"></a>
   <a href="https://github.com/lingyicute/flappybird"><img src="https://img.shields.io/github/stars/lingyicute/flappybird?style=flat&color=yellow" alt="GitHub Stars"></a>
@@ -164,6 +164,31 @@ npm run test:dev
 ```
 
 Testing requires Node.js, Python 3, Bash, and Playwright's Chromium browser. These are **development/test tools only**; they are not needed to play `index.html`.
+
+### Repository layout
+
+| Path | What it is |
+| --- | --- |
+| `index.html` | the release: the game, the artwork, the font and the sounds in one file |
+| `dev.html` + `assets/` | the development entry; the same game, served from the repository |
+| `sprites/`, `fonts/`, `audio/` | the assets the development entry loads |
+| `tools/` | the packer and the analysis helpers (see below) |
+| `testing/` | the Playwright gates, one file per behaviour |
+
+`assets/index-Dm5mUOvC.js` is the single source of truth for the game: `index.html` is
+generated from it, so after changing it, always re-run the packer and commit the
+resulting `index.html` as well (the `packed` gate checks exactly that).
+
+### Analysis helpers
+
+```bash
+node tools/deadcode.mjs assets/index-Dm5mUOvC.js   # unreachable top-level declarations
+node tools/coverage.mjs .           # which parts of the bundle the gates actually run
+node tools/map.mjs                  # size and coverage map of the bundle
+node tools/decls.mjs assets/index-Dm5mUOvC.js      # the top-level declarations
+```
+
+`tools/coverage.mjs` writes `.cov.json`, which `tools/map.mjs` turns into the map.
 
 <br>
 

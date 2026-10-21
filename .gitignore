@@ -1,6 +1,9 @@
 # dependencies installed for the Playwright gates
 node_modules/
 
+# the lock file of a single-file game only makes the diff noisy
+package-lock.json
+
 # screenshots / dumps written by the gates and by tools/coverage.mjs
 testing/*.png
 .cov.json
