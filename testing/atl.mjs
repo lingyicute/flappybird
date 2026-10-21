@@ -13,11 +13,11 @@ const page = await b.newPage();
 page.on('console', m=>{ if(m.type()!=='warning') console.log('CONSOLE', m.type(), m.text()); });
 await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil:'load' });
 const info = await page.evaluate(async () => {
-  const r = await fetch('/assets/atlas-D7zSkRSP.webp');
+  const r = await fetch('./assets/atlas-D7zSkRSP.webp');
   const buf = await r.arrayBuffer();
   let bmpOk = false, imgOk = false, imgW = 0, imgH = 0;
   try { const bm = await createImageBitmap(new Blob([buf], { type: 'image/webp' })); bmpOk = true; } catch (e) { bmpOk = 'err:' + e.name; }
-  try { const im = new Image(); im.src = '/assets/atlas-D7zSkRSP.webp'; await im.decode(); imgOk = true; imgW = im.naturalWidth; imgH = im.naturalHeight; } catch (e) { imgOk = 'err:' + e.name; }
+  try { const im = new Image(); im.src = './assets/atlas-D7zSkRSP.webp'; await im.decode(); imgOk = true; imgW = im.naturalWidth; imgH = im.naturalHeight; } catch (e) { imgOk = 'err:' + e.name; }
   return { bytes: buf.byteLength, head: new TextDecoder().decode(buf.slice(0, 40)), bmpOk, imgOk, imgW, imgH };
 });
 console.log(JSON.stringify({ atlasHits, info }, null, 2));

@@ -224,9 +224,9 @@ const imageSprite = (src, pxW, pxH, anchorX = 0.5, anchorY = 0.5) => ({
   ...spriteBox(pxW, pxH, anchorX, anchorY),
 });
 
-const ATLAS_URL = "/assets/atlas-D7zSkRSP.webp";
-const FONT_URL = "/fonts/Jersey10-Regular.woff2";
-const LOGO_URL = "/sprites/logo.png";
+const ATLAS_URL = "./assets/atlas-D7zSkRSP.webp";
+const FONT_URL = "./fonts/Jersey10-Regular.woff2";
+const LOGO_URL = "./sprites/logo.png";
 
 const SPRITES = {
   background: atlasSprite("bg", 144, 256, 0.5, 0.5),
@@ -234,25 +234,25 @@ const SPRITES = {
   ground: atlasSprite("ground", 144, 53, 0.5, 1),
   pipeUp: atlasSprite("pipe_new", 26, 160, 0.5, 1),
   pipeDown: atlasSprite("pipe_new", 26, 160, 0.5, 1),
-  bird0: imageSprite("/sprites/bird-upflap.png", 17, 12, 0.5, 0.5),
-  bird1: imageSprite("/sprites/bird-midflap.png", 17, 12, 0.5, 0.5),
-  bird2: imageSprite("/sprites/bird-downflap.png", 17, 12, 0.5, 0.5),
-  message: imageSprite("/sprites/message.png", 92, 133.5, 0.5, 0.5),
+  bird0: imageSprite("./sprites/bird-upflap.png", 17, 12, 0.5, 0.5),
+  bird1: imageSprite("./sprites/bird-midflap.png", 17, 12, 0.5, 0.5),
+  bird2: imageSprite("./sprites/bird-downflap.png", 17, 12, 0.5, 0.5),
+  message: imageSprite("./sprites/message.png", 92, 133.5, 0.5, 0.5),
   buttonGreen: atlasSprite("button-green", 62, 20, 0.5, 0.5),
   buttonYellow: atlasSprite("button-yellow", 62, 20, 0.5, 0.5),
   buttonGray: atlasSprite("button-gray", 62, 20, 0.5, 0.5),
-  soundOn: imageSprite("/sprites/sound-on.png", 14, 12, 0.5, 0.5),
-  soundOff: imageSprite("/sprites/sound-off.png", 14, 12, 0.5, 0.5),
-  number0: imageSprite("/sprites/number-0.png", 24, 36, 0.5, 0.5),
-  number1: imageSprite("/sprites/number-1.png", 16, 36, 0.5, 0.5),
-  number2: imageSprite("/sprites/number-2.png", 24, 36, 0.5, 0.5),
-  number3: imageSprite("/sprites/number-3.png", 24, 36, 0.5, 0.5),
-  number4: imageSprite("/sprites/number-4.png", 24, 36, 0.5, 0.5),
-  number5: imageSprite("/sprites/number-5.png", 24, 36, 0.5, 0.5),
-  number6: imageSprite("/sprites/number-6.png", 24, 36, 0.5, 0.5),
-  number7: imageSprite("/sprites/number-7.png", 24, 36, 0.5, 0.5),
-  number8: imageSprite("/sprites/number-8.png", 24, 36, 0.5, 0.5),
-  number9: imageSprite("/sprites/number-9.png", 24, 36, 0.5, 0.5),
+  soundOn: imageSprite("./sprites/sound-on.png", 14, 12, 0.5, 0.5),
+  soundOff: imageSprite("./sprites/sound-off.png", 14, 12, 0.5, 0.5),
+  number0: imageSprite("./sprites/number-0.png", 24, 36, 0.5, 0.5),
+  number1: imageSprite("./sprites/number-1.png", 16, 36, 0.5, 0.5),
+  number2: imageSprite("./sprites/number-2.png", 24, 36, 0.5, 0.5),
+  number3: imageSprite("./sprites/number-3.png", 24, 36, 0.5, 0.5),
+  number4: imageSprite("./sprites/number-4.png", 24, 36, 0.5, 0.5),
+  number5: imageSprite("./sprites/number-5.png", 24, 36, 0.5, 0.5),
+  number6: imageSprite("./sprites/number-6.png", 24, 36, 0.5, 0.5),
+  number7: imageSprite("./sprites/number-7.png", 24, 36, 0.5, 0.5),
+  number8: imageSprite("./sprites/number-8.png", 24, 36, 0.5, 0.5),
+  number9: imageSprite("./sprites/number-9.png", 24, 36, 0.5, 0.5),
   gameOver: atlasSprite("game-over", 100, 18.3, 0.5, 0.5),
   newBadge: atlasSprite("new-badge", 18, 8, 0.5, 0.5),
   panelOutside: atlasSprite("panel-outside", 110, 128.9, 0.5, 0.5),
@@ -2380,11 +2380,11 @@ class FrameLoop {
 
 const MASTER_GAIN = 0.25;
 const SOUND_URLS = {
-  flap: "/audio/sfx_wing.mp3",
-  score: "/audio/sfx_point.mp3",
-  hit: "/audio/sfx_hit.mp3",
-  die: "/audio/sfx_die.mp3",
-  swoosh: "/audio/sfx_swooshing.mp3",
+  flap: "./audio/sfx_wing.mp3",
+  score: "./audio/sfx_point.mp3",
+  hit: "./audio/sfx_hit.mp3",
+  die: "./audio/sfx_die.mp3",
+  swoosh: "./audio/sfx_swooshing.mp3",
 };
 
 const decodedBuffers = {};
