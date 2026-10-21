@@ -18,17 +18,16 @@ printf '%-14s ' audit
 if out=$(python3 tools/audit.py . 2>&1); then echo PASS; else echo FAIL; fails=$((fails+1)); tail -5 <<<"$out"; fi
 # the committed index.html must be exactly what the packer produces right now
 printf '%-14s ' packed
-tmp=$(mktemp -d)
-mkdir -p "$tmp/tools"
-cp -r assets audio fonts sprites "$tmp/"
-cp dev.html favicon-96x96.png "$tmp/"
-cp tools/pack_single_file.py "$tmp/tools/"
-if python3 "$tmp/tools/pack_single_file.py" >/dev/null 2>&1 && cmp -s "$tmp/index.html" index.html; then
+tmp_html=$(mktemp --suffix=.html)
+trap 'rm -f "$tmp_html"' EXIT
+if ! out=$(python3 tools/pack_single_file.py "$tmp_html" 2>&1); then
+  echo "FAIL"; fails=$((fails+1)); tail -5 <<<"$out"
+elif cmp -s "$tmp_html" index.html; then
   echo PASS
 else
   echo "FAIL"; fails=$((fails+1)); echo "  index.html does not match the packer output - run python3 tools/pack_single_file.py"
 fi
-rm -rf "$tmp"
+rm -f "$tmp_html"
 echo
 if [ "$fails" -eq 0 ]; then
   echo "ALL GATES PASS (ENTRY=${ENTRY:-index.html})"
