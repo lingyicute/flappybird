@@ -719,9 +719,7 @@ function reviveButtonY(playButtonY) {
 
 function narrowGameOverLayout() {
   return {
-    narrow: true,
     panelScale: 1,
-    panelOffsetX: 0,
     panelY: NARROW_PANEL_Y,
     titleY: NARROW_PANEL_Y + PANEL_H / 2 + NARROW_TITLE_GAP + GAMEOVER_TITLE_H / 2,
     buttonY: NARROW_BUTTON_Y,
@@ -732,9 +730,7 @@ function wideGameOverLayout(frameW) {
   const scale = Math.min(WIDE_MAX_SCALE, (frameW - 2 * WIDE_SIDE_MARGIN - WIDE_COLUMN_GAP) / (2 * PANEL_W));
   const halfPanelH = (PANEL_H * scale) / 2;
   return {
-    narrow: false,
     panelScale: scale,
-    panelOffsetX: (PANEL_W * scale + WIDE_COLUMN_GAP) / 2,
     panelY: WIDE_PANEL_Y,
     titleY: WIDE_PANEL_Y + halfPanelH + WIDE_TITLE_GAP + GAMEOVER_TITLE_H / 2,
     buttonY: WIDE_PANEL_Y - halfPanelH - WIDE_BUTTON_GAP - BUTTON_HEIGHT / 2,
@@ -1064,7 +1060,7 @@ class SplitMix64 {
 const SEED_53_MASK = (1n << 53n) - 1n;
 
 function randomSeed53() {
-  if (typeof crypto < "u" && crypto.getRandomValues) {
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
     const buf = new BigUint64Array(1);
     crypto.getRandomValues(buf);
     return buf[0] & SEED_53_MASK;
@@ -1112,8 +1108,6 @@ class FlappyGame {
   prng = new SplitMix64(0n);
   playStep = 0;
   flaps = [];
-  passSteps = [];
-  pendingPasses = 0;
   revivedAtStep = null;
   deathCause = null;
   diePending = false;
@@ -1142,10 +1136,6 @@ class FlappyGame {
 
   get flapTrace() {
     return this.flaps;
-  }
-
-  get passStepTrace() {
-    return this.passSteps;
   }
 
   get wasRevived() {
@@ -1284,10 +1274,6 @@ class FlappyGame {
 
     if (startedInPlay) {
       this.playStep += 1;
-      while (this.pendingPasses > 0) {
-        this.passSteps.push(this.playStep);
-        this.pendingPasses -= 1;
-      }
     }
   }
 
@@ -1349,8 +1335,6 @@ class FlappyGame {
     this.playStep = 0;
     this.spawnCount = 0;
     this.flaps = [0];
-    this.passSteps = [];
-    this.pendingPasses = 0;
     this.deathCause = null;
     this.diePending = false;
     this.birdY = 0;
@@ -1384,7 +1368,6 @@ class FlappyGame {
       if (!pipe.passed && pipe.x <= 0) {
         pipe.passed = true;
         this.score += 1;
-        this.pendingPasses += 1;
         this.emitSound("score");
       }
     }
