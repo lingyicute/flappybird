@@ -124,6 +124,10 @@ const out = {};
   await page.waitForTimeout(300);
   const before = await page.evaluate(() => {
     window.__match = window.__royale.match;
+    const bot = window.__royale.match.bots.find((b) => b.alive && b.pilot);
+    window.__pilotBot = bot;
+    bot.pilot.pendingFlapStep = 999999;
+    bot.pilot.aimOrdinal = 42;
     return { state: window.__game.state, placement: window.__royale.placement,
       alive: window.__royale.aliveBots(), feed: window.__royale.match.feed.length };
   });
@@ -133,13 +137,101 @@ const out = {};
     state: window.__game.state, revived: window.__game.wasRevived,
     placement: window.__royale.placement, sameMatch: window.__match === window.__royale.match,
     alive: window.__royale.aliveBots(), feed: window.__royale.match.feed.length,
+    pilotPendingStep: window.__pilotBot?.pilot?.pendingFlapStep ?? null,
   }));
   out.royaleRevive = { before, after };
-  // the race must continue: same field, same eliminated birds, no stale placement
+  // the race must continue: same field, same eliminated birds, no stale placement, reset pilot schedule
   out.royaleReviveOk = before.state === 'gameover' && before.placement !== null
     && after.state === 'play' && after.revived && after.placement === null
-    && after.sameMatch && after.alive === before.alive && after.feed === before.feed;
+    && after.sameMatch && after.alive === before.alive && after.feed === before.feed
+    && after.pilotPendingStep !== 999999;
   await page.close();
+}
+
+// ----------------------------------------- 5. high-altitude pipe + 0x0 resize
+{
+  const page = await open('', true);
+  out.highPipe = await page.evaluate(() => {
+    const g = window.__game;
+    g.flap();
+    g.birdY = Math.round(12 * 1048576);
+    g.birdVy = 0;
+    g.pipes = [{ x: 0, gapY: 0, halfGap: Math.round(0.235 * 1048576), passed: false }];
+    g.step(1 / 120);
+    window.__ui.camera.handleResize(0, 0, 1, 0);
+    const resizeZero = Number.isFinite(window.__ui.camera.frameW)
+      && window.__ui.camera.frameW > 0
+      && Number.isFinite(window.__ui.camera.pixelsPerUnit)
+      && window.__ui.camera.pixelsPerUnit > 0;
+    window.__ui.camera.handleResize(1024, 768, 1, 0);
+    return { state: g.state, cause: g.runDeathCause, resizeZero };
+  });
+  out.highPipeOk = out.highPipe.state === 'gameover'
+    && out.highPipe.cause === 'pipeTop'
+    && out.highPipe.resizeZero;
+  await page.close();
+}
+
+// ----------------------------------------- 6. game-over button guard + KeyR
+{
+  const page = await open('', true);
+  await page.evaluate(() => {
+    const g = window.__game;
+    g.flap();
+    g.score = 3;
+    g.bestScore = 3;
+    g.birdY = Math.round(-0.95 * 1048576);
+  });
+  // Press down while still in 'play', crash + settle past button delay, then release over REVIVE
+  await page.mouse.move(614, 540);
+  await page.mouse.down();
+  await page.evaluate(() => { for (let i = 0; i < 200; i++) window.__game.step(1 / 120); });
+  await page.mouse.up();
+  const afterHeldRelease = await page.evaluate(() => ({
+    state: window.__game.state, revived: window.__game.wasRevived,
+  }));
+  // Press down outside buttons, drag onto REVIVE, release
+  await page.mouse.move(80, 80);
+  await page.mouse.down();
+  await page.mouse.move(614, 540);
+  await page.mouse.up();
+  const afterDragRelease = await page.evaluate(() => ({
+    state: window.__game.state, revived: window.__game.wasRevived,
+  }));
+  await key(page, 'KeyR', false);
+  const afterKeyR = await page.evaluate(() => ({
+    state: window.__game.state, revived: window.__game.wasRevived,
+  }));
+  out.gameOverInput = { afterHeldRelease, afterDragRelease, afterKeyR };
+  out.gameOverInputOk = afterHeldRelease.state === 'gameover' && !afterHeldRelease.revived
+    && afterDragRelease.state === 'gameover' && !afterDragRelease.revived
+    && afterKeyR.state === 'play' && afterKeyR.revived;
+  await page.close();
+}
+
+// ----------------------------------------- 7. subpath deployment
+{
+  const SUBPORT = PORT + 1;
+  const subServer = http.createServer((req, res) => {
+    const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    if (!u.startsWith('/subpath/')) { res.writeHead(404); res.end('nf'); return; }
+    let f = path.join(dir, u.slice('/subpath/'.length));
+    if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, process.env.ENTRY || 'index.html');
+    if (!fs.existsSync(f)) { res.writeHead(404); res.end('nf'); return; }
+    res.writeHead(200, { 'content-type': MIME[path.extname(f)] ?? 'application/octet-stream' });
+    fs.createReadStream(f).pipe(res);
+  });
+  await new Promise((r) => subServer.listen(SUBPORT, '127.0.0.1', r));
+  const sub404 = [];
+  const subPage = await browser.newPage({ viewport: { width: 1024, height: 768 } });
+  subPage.on('response', (r) => { if (r.status() === 404 && !r.url().endsWith('/favicon.ico')) sub404.push(r.url()); });
+  await subPage.goto(`http://127.0.0.1:${SUBPORT}/subpath/`, { waitUntil: 'load' });
+  await subPage.waitForFunction('document.querySelector(".loading-overlay")?.dataset.loaded === "true"', null, { timeout: 20000 });
+  const subReady = await subPage.evaluate(() => !!window.__game);
+  await subPage.close();
+  subServer.close();
+  out.subpath = { subReady, sub404 };
+  out.subpathOk = subReady && sub404.length === 0;
 }
 
 out.externalRequests = [...external];
@@ -147,6 +239,7 @@ out.errors = errors;
 console.log(JSON.stringify(out, null, 2));
 
 const pass = out.skyOk && out.keyRepeatOk && out.pauseOk && out.royaleReviveOk
+  && out.highPipeOk && out.gameOverInputOk && out.subpathOk
   && external.size === 0 && errors.length === 0;
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await browser.close();

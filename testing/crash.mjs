@@ -121,7 +121,7 @@ await page2.waitForFunction('!!window.__game', null, { timeout:20000 });
 await page2.waitForTimeout(1200);
 await page2.mouse.click(cx, cy);                     // start the run
 await page2.waitForTimeout(250);
-await page2.evaluate(() => { window.__game.birdY = -0.80; });   // ~0.1 units above the ground trigger
+await page2.evaluate(() => { window.__game.birdY = Math.round(-0.80 * 1048576); });   // ~0.1 units above the ground trigger
 let short = null;
 const t1 = Date.now();
 while (Date.now() - t1 < 8000) {

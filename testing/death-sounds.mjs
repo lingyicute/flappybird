@@ -61,8 +61,8 @@ out.pipe = await page.evaluate(() => {
   g.flap();                                               // getready -> play
   S.played.length = 0;                                    // the wing sound is not under test
   g.birdVy = 0;
-  g.birdY = 0.45;                                         // already inside the lower pipe
-  g.pipes = [{ x: 0, gapY: 0.6, halfGap: 0.12, passed: false }];
+  g.birdY = Math.round(0.45 * 1048576);                   // already inside the lower pipe
+  g.pipes = [{ x: 0, gapY: Math.round(0.6 * 1048576), halfGap: Math.round(0.12 * 1048576), passed: false }];
   const res = { impact: [], dieAt: null, dyingSpeedDown: null, stillAirborne: null };
   let hitStep = -1;
   for (let i = 0; i < 400; i++) {
@@ -90,7 +90,7 @@ out.ground = await page.evaluate(() => {
   g.flap();
   S.played.length = 0;
   g.birdVy = 0;
-  g.birdY = -0.95;                                        // on the ground trigger
+  g.birdY = Math.round(-0.95 * 1048576);                  // on the ground trigger
   for (let i = 0; i < 240; i++) g.step(1 / 120);
   return { state: g.state, cause: g.runDeathCause, played: S.played.slice() };
 });
