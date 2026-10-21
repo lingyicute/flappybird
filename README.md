@@ -183,7 +183,7 @@ resulting `index.html` as well (the `packed` gate checks exactly that).
 
 ```bash
 node tools/deadcode.mjs assets/index-Dm5mUOvC.js   # unreachable top-level declarations
-node tools/coverage.mjs .           # which parts of the bundle the gates actually run
+node tools/coverage.mjs .           # V8 function coverage from an automated session
 node tools/map.mjs                  # size and coverage map of the bundle
 node tools/decls.mjs assets/index-Dm5mUOvC.js      # the top-level declarations
 ```
