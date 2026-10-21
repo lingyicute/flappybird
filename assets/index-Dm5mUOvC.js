@@ -9884,9 +9884,9 @@ function eggLayout() {
     centreY: 0.02,
     titleY: 0.355,
     line1Y: 0.175,
-    line2Y: 0.06,
-    yesY: -0.105,
-    noY: -0.315,
+    line2Y: 0.085,
+    yesY: -0.12,
+    noY: -0.335,
   };
 }
 // the longest line has to fit the card at portrait widths: shrink the type
@@ -9926,14 +9926,8 @@ function eggDraw(r, i, l, u, c, f) {
     // gets the same outline with a gold fill on top
     $(r, "EASTER EGG!", 0, _.titleY, EGG_TITLE_SIZE, "center"),
     $(r, "EASTER EGG!", 0, _.titleY, EGG_TITLE_SIZE, "center", EGG_GOLD),
-    $(
-      r,
-      "You found an Easter egg!",
-      0,
-      _.line1Y,
-      eggFit(r, "You found an Easter egg!", EGG_LINE1_SIZE, w),
-      "center",
-    ),
+    f || $(r, "You found an Easter egg!", 0, _.line1Y,
+      eggFit(r, "You found an Easter egg!", EGG_LINE1_SIZE, w), "center"),
     $(
       r,
       f ? "Switch to Classic Mode?" : "Switch to Royale Mode?",
