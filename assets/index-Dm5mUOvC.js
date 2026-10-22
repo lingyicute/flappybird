@@ -231,8 +231,12 @@ const SPRITES = {
   background: atlasSprite("bg", 144, 256, 0.5, 0.5),
   cityline: atlasSprite("cityline", 144, 110, 0.5, 0),
   ground: atlasSprite("ground", 144, 53, 0.5, 1),
-  pipeUp: atlasSprite("pipe_new", 26, 160, 0.5, 1),
-  pipeDown: atlasSprite("pipe_new", 26, 160, 0.5, 1),
+  // The frame is 206x1024: a 4x upscale of the 52x256 pipe art (lip = the top
+  // 104 rows, shaft = 176 columns = 44 art px), so the sprite is 26x128 world
+  // px. At 160 it was a quarter taller than the art and the lip came out 1.35
+  // bird heights instead of one; every other frame keeps its atlas aspect.
+  pipeUp: atlasSprite("pipe_new", 26, 128, 0.5, 1),
+  pipeDown: atlasSprite("pipe_new", 26, 128, 0.5, 1),
   bird0: imageSprite("./sprites/bird-upflap.png", 17, 12, 0.5, 0.5),
   bird1: imageSprite("./sprites/bird-midflap.png", 17, 12, 0.5, 0.5),
   bird2: imageSprite("./sprites/bird-downflap.png", 17, 12, 0.5, 0.5),
