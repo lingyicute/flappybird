@@ -44,8 +44,11 @@ js = open(os.path.join(SITE, "assets/index-Dm5mUOvC.js"), encoding="utf-8").read
 # @font-face Jersey10 and owns the one and only copy of the font file. The
 # bundle asks for that face by name, so the font is inlined exactly once.
 asset_map = {
+    # sprites/logo.png is deliberately not in this map: the boot splash <img>
+    # in the HTML carries the one and only copy, and the bundle reads it back
+    # from the DOM. Inlining it here as well would duplicate the payload in
+    # every single-file build.
     "assets/atlas-D7zSkRSP.webp": atlas,
-    "sprites/logo.png": logo,
     "sprites/sound-on.png": data_uri("sprites/sound-on.png", "image/png"),
     "sprites/sound-off.png": data_uri("sprites/sound-off.png", "image/png"),
     "sprites/message.png": data_uri("sprites/message.png", "image/png"),
