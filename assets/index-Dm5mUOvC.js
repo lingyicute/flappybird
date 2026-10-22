@@ -225,7 +225,11 @@ const imageSprite = (src, pxW, pxH, anchorX = 0.5, anchorY = 0.5) => ({
 });
 
 const ATLAS_URL = "./assets/atlas-D7zSkRSP.webp";
-const LOGO_URL = "./sprites/logo.png";
+// The boot splash in the HTML owns the only copy of the logo: the packer
+// inlines it there so the artwork is on screen before this bundle is parsed.
+// Read it back from that element instead of carrying a second copy of the same
+// data URI inside the bundle.
+const bootLogoUrl = () => document.querySelector(".boot-splash__logo")?.src ?? "";
 
 const SPRITES = {
   background: atlasSprite("bg", 144, 256, 0.5, 0.5),
@@ -2801,7 +2805,7 @@ function mountApp(root) {
 
   const logo = document.createElement("img");
   logo.className = "loading-overlay__logo";
-  logo.src = LOGO_URL;
+  logo.src = bootLogoUrl();
   logo.alt = "Flappy Bird";
 
   const spinner = document.createElement("div");
