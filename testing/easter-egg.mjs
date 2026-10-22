@@ -199,8 +199,10 @@ const pass =
   out.clickCard.flaps === out.tenTaps.flaps &&
   out.notNow.open === false && out.notNow.muted === 'false' &&
   out.singleTapAfter.muted === 'true' &&
-  // sound already off: still off after the egg, and after closing it
+  // sound already off: still off after the egg, and after closing it - and the
+  // card must not announce itself with a chime the player asked not to hear
   out.tenTapsMuted.open === true && out.tenTapsMuted.muted === 'true' &&
+  out.tenTapsMuted.osc.length === 0 &&
   // one deliberate tap, a pause, then a burst: the burst hands back that setting
   out.afterSingle.muted === 'true' &&
   out.burstAfterSingle.open === true && out.burstAfterSingle.muted === 'true' &&

@@ -2432,7 +2432,8 @@ const audioEngine = {
   },
 
   chime() {
-    if (!this.ensureContext() || !masterGainNode) return;
+    // a muted player is exactly who used to get a loud chime out of the egg
+    if (soundPrefs.getSnapshot() || !this.ensureContext() || !masterGainNode) return;
     this.resumeIfNeeded();
     const t0 = audioCtx.currentTime + 0.005;
     const envelope = audioCtx.createGain();
