@@ -187,13 +187,26 @@ const out = {};
     placement: window.__royale.placement, sameMatch: window.__match === window.__royale.match,
     alive: window.__royale.aliveBots(), feed: window.__royale.match.feed.length,
     pilotPendingStep: window.__pilotBot?.pilot?.pendingFlapStep ?? null,
+    // every bird still in the race has to be flying the player's field from the
+    // revive on: the same step clock (it gates the first pipe while the field is
+    // still empty) and no leftover timer member from the old spawner
+    clockDrift: window.__royale.match.bots
+      .filter((b) => b.alive && b.hopped)
+      .map((b) => b.game.playStep - window.__game.playStep),
+    strayPipeTimers: window.__royale.match.bots.filter((b) => 'pipeTimer' in b.game).length,
   }));
   out.royaleRevive = { before, after };
   // the race must continue: same field, same eliminated birds, no stale placement, reset pilot schedule
   out.royaleReviveOk = before.state === 'gameover' && before.placement !== null
     && after.state === 'play' && after.revived && after.placement === null
     && after.sameMatch && after.alive === before.alive && after.feed === before.feed
-    && after.pilotPendingStep !== 999999;
+    && after.pilotPendingStep !== 999999
+    // a bot takes its own step right after the resync, so its counter sits at
+    // most one step ahead of the player's; what must not happen is a bird a
+    // whole hop (~13..135 steps in this race) behind, which is what left it
+    // idling in an empty field after the revive
+    && after.clockDrift.length > 0 && after.clockDrift.every((d) => Math.abs(d) <= 1)
+    && after.strayPipeTimers === 0;
   await page.close();
 }
 

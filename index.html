@@ -1995,10 +1995,17 @@ class RoyaleMatch {
           x,
           gapY: pipe.gapY,
           halfGap: pipe.halfGap,
-          passed: x + PIPE_HALF_WIDTH <= 0,
+          // what advancePipes() scores by: a pipe at or behind the bird is
+          // behind it and must not be scored a second time
+          passed: x <= 0,
         };
       });
-      bot.game.pipeTimer = source.pipeTimer + bot.hopStep / SIM_HZ;
+      // The bot flies the player's field from here on, so its step counter runs
+      // on the player's clock too: that counter gates the first pipe while the
+      // field is still empty, and a bot that had only just hopped would
+      // otherwise idle through a second and a half of empty sky. (This used to
+      // write a `pipeTimer`, a member the engine no longer has.)
+      bot.game.playStep = source.playStep;
       bot.game.spawnCount = source.spawnCount;
       bot.game.prng.state = source.prng.state;
       bot.pilot.resetAim();
