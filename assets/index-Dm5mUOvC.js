@@ -1571,6 +1571,9 @@ class RoyaleBot {
   prevX;
   prevY = 0;
   prevRot = 0;
+  // post-step snapshot, refreshed once per simulated step: rendering reads it
+  // instead of building a fresh one per bot per frame
+  snap = null;
   hopped = false;
   dead = false;
   finished = false;
@@ -1597,12 +1600,14 @@ class RoyaleBot {
       this.game.step(SIM_DT);
       this.x -= WORLD_SCROLL_STEP;
       if (this.x < OFFSCREEN_LEFT_X) this.finished = true;
+      this.snap = this.game.snapshot;
       return null;
     }
 
     if (this.pilot.wantsFlap(snap, this.stepIndex)) this.game.flap();
     this.game.step(SIM_DT);
     this.stepIndex += 1;
+    this.snap = this.game.snapshot;
 
     const pub = this.game.publishedState;
     if (pub.state === "gameover") {
@@ -1613,8 +1618,8 @@ class RoyaleBot {
   }
 
   view(interpStep, alpha, busY) {
-    if (!this.hopped || this.finished) return null;
-    const snap = this.game.snapshot;
+    if (!this.hopped || this.finished || !this.snap) return null;
+    const snap = this.snap;
     let y = lerp(this.prevY, snap.birdY, alpha);
     const stepsSinceHop = interpStep - this.hopStep;
     if (stepsSinceHop < BUS_DROP_BLEND_STEPS) {
