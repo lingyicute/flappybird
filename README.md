@@ -13,7 +13,7 @@
 <br>
 <p align="center">
   🇺🇸 English •
-  <a href="https://github.com/lingyicute/flappybird">🌐 Source Code</a> •
+  <a href="https://fb.92li.uk">🌐 Play Online</a> •
   <a href="https://github.com/lingyicute/flappybird/issues">🐛 Report Bug</a>
 </p>
 

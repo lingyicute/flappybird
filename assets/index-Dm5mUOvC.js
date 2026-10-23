@@ -958,7 +958,7 @@ function renderEasterEgg(ctx, renderer, frameW, frameH, elapsed, inRoyale) {
     ctx,
     inRoyale ? "Switch to Classic Mode?" : "Switch to Royale Mode?",
     0,
-    layout.line2Y,
+    inRoyale ? layout.line1Y : layout.line2Y,
     eggFitText(ctx, "Switch to Royale Mode?", EGG_LINE2_SIZE, maxTextW),
     "center",
   );
