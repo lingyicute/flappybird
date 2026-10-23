@@ -3,7 +3,7 @@
 set -u
 cd "$(dirname "$0")/.."
 fails=0
-for t in sprite-aspect verify2 crash flappy hud revive score-font score-limit credit-audio easter-egg guardrails death-sounds font-once; do
+for t in lifecycle sprite-aspect verify2 crash flappy hud revive score-font score-limit credit-audio easter-egg guardrails death-sounds font-once; do
   printf '%-14s ' "$t"
   out=$(timeout 400 node "testing/$t.mjs" . 2>&1)
   status=$?

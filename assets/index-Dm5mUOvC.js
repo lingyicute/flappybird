@@ -2713,15 +2713,22 @@ class GameApp {
   handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       this.inputRouter.handlePointerCancel();
+      this.frameLoop.stop();
       return;
     }
-    this.lastTime = performance.now();
-    this.timestep.reset();
-    this.frameLoop.restart();
+    this.resumeFrames();
   };
 
+  // Reset wall-clock time, not the interpolation accumulator: returning from a
+  // hidden/frozen page must neither catch up physics nor rewind the bird pose.
+  resumeFrames() {
+    if (document.visibilityState === "hidden") return;
+    this.lastTime = performance.now();
+    this.frameLoop.restart();
+  }
+
   handlePointerDown = (event) => {
-    if (this.paused) return;
+    if (event.button !== 0 || !event.isPrimary || this.paused) return;
     if (this.easterEgg) {
       this.easterEggPointer(event.clientX, event.clientY);
       return;
@@ -2735,6 +2742,7 @@ class GameApp {
   };
 
   handlePointerUp = (event) => {
+    if (event.button !== 0 || !event.isPrimary) return;
     if (!this.paused && !this.easterEgg) {
       this.inputRouter.handlePointerUp(event.clientX, event.clientY);
     }
@@ -2849,12 +2857,21 @@ function mountApp(root) {
   app.start();
   window.addEventListener(
     "pagehide",
-    () => {
-      unsubscribeOverlay();
-      app.dispose();
+    (event) => {
+      if (event.persisted) {
+        // A bfcache entry retains this app and its subscriptions. Disposing it
+        // here would leave a permanently inert canvas on back/forward restore.
+        app.inputRouter.handlePointerCancel();
+        app.frameLoop.stop();
+      } else {
+        unsubscribeOverlay();
+        app.dispose();
+      }
     },
-    { once: true },
   );
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) app.resumeFrames();
+  });
 }
 
 const rootElement = document.getElementById("root");
