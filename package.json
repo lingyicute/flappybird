@@ -1,7 +1,7 @@
 {
   "name": "flappybird-remake",
   "private": true,
-  "description": "Offline Flappy Bird: single-file index.html + dev.html, with build tools and Playwright gates",
+  "description": "Flappy Bird faithful H5 remake: single-file index.html + dev.html, with build tools and Playwright gates",
   "license": "AGPL-3.0-only",
   "scripts": {
     "build": "python3 tools/pack_single_file.py",
