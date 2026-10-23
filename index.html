@@ -1973,6 +1973,15 @@ class RoyaleMatch {
       if (elimination) this.feed.push({ ...elimination, step: this.stepCount });
     }
     this.applyResync();
+    this.pruneFeed();
+  }
+
+  // 只按年龄剔除，匹配进行中不删除仍在展示期的条目，避免 feed 无限增长。
+  pruneFeed() {
+    const cutoff = this.stepCount - FEED_MAX_AGE_SECONDS * SIM_HZ;
+    let drop = 0;
+    while (drop < this.feed.length && this.feed[drop].step < cutoff) drop += 1;
+    if (drop > 0) this.feed = this.feed.slice(drop);
   }
 
   resync(game) {
@@ -2399,13 +2408,19 @@ class DynamicRenderScale {
     this.windowMisses = 0;
 
     const bad = missRatio > MISS_THRESHOLD;
-    if (!bad || !this.lastWindowBad || this.stepIndex >= RENDER_SCALE_STEPS.length - 1) {
-      this.lastWindowBad = bad;
-      return false;
+    if (bad === this.lastWindowBad) {
+      // 连续两窗口同向：卡顿时降画质，空闲时逐步恢复，避免画质只降不升。
+      if (bad && this.stepIndex < RENDER_SCALE_STEPS.length - 1) {
+        this.stepIndex += 1;
+        return true;
+      }
+      if (!bad && this.stepIndex > 0) {
+        this.stepIndex -= 1;
+        return true;
+      }
     }
-    this.lastWindowBad = false;
-    this.stepIndex += 1;
-    return true;
+    this.lastWindowBad = bad;
+    return false;
   }
 }
 
