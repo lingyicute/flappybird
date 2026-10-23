@@ -1944,7 +1944,7 @@ class RoyaleMatch {
 }
 
 function isRoyaleUrl() {
-  return typeof window > "u"
+  return typeof window === "undefined"
     ? false
     : new URLSearchParams(window.location.search).has("royale");
 }
@@ -2746,11 +2746,24 @@ class GameApp {
     if (!this.paused && !this.easterEgg) {
       this.inputRouter.handlePointerUp(event.clientX, event.clientY);
     }
+    this.releaseCapture(event);
   };
 
-  handlePointerCancel = () => {
+  handlePointerCancel = (event) => {
     this.inputRouter.handlePointerCancel();
+    this.releaseCapture(event);
   };
+
+  // `setPointerCapture` in handlePointerDown is always paired with an explicit
+  // release here, so a pointer that is lifted off the canvas (or canceled) can
+  // never leave the canvas stuck in a captured state and swallow later input.
+  releaseCapture(event) {
+    try {
+      this.canvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // The browser may already have released the capture.
+    }
+  }
 
   frame = (timestamp) => {
     const dt = (timestamp - this.lastTime) / 1000;
