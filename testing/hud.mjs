@@ -148,6 +148,60 @@ if (out.buttons.yellow) {
 }
 out.edgeReviveClick = edgeRevive;
 
+// ---- 4. storage failures fall back to an in-memory mute preference ------
+// The initial localStorage probe succeeds, but the preference read and its first
+// write fail afterwards. The second write must be "false": that proves the
+// first failed persistent write still published "true" to the in-memory store.
+{
+  const faultPage = await browser.newPage({ viewport: { width: 1024, height: 768 } });
+  faultPage.on('request', (r) => { if (!r.url().startsWith(origin) && !r.url().startsWith('data:')) external.add(r.url()); });
+  faultPage.on('pageerror', (e) => errors.push('pageerror(storage): ' + e.message));
+  faultPage.on('console', (m) => {
+    const t = m.text();
+    if (m.type() === 'error' && !/Failed to load|404/.test(t)) errors.push('console(storage): ' + t);
+  });
+  await faultPage.addInitScript(() => {
+    const getItem = Storage.prototype.getItem;
+    const setItem = Storage.prototype.setItem;
+    let rejectNextMuteWrite = true;
+    window.__muteWrites = [];
+    Storage.prototype.getItem = function (key) {
+      if (key === 'flappy_muted') throw new DOMException('simulated read failure', 'SecurityError');
+      return getItem.call(this, key);
+    };
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'flappy_muted') {
+        window.__muteWrites.push(String(value));
+        if (rejectNextMuteWrite) {
+          rejectNextMuteWrite = false;
+          throw new DOMException('simulated write failure', 'QuotaExceededError');
+        }
+      }
+      return setItem.call(this, key, value);
+    };
+  });
+  await faultPage.goto(`${origin}/`, { waitUntil: 'load' });
+  await faultPage.waitForFunction(
+    '!!window.__ui && document.querySelector(".loading-overlay")?.dataset.loaded === "true"',
+    null,
+    { timeout: 20000 },
+  );
+  out.storageFault = await faultPage.evaluate(() => {
+    let firstError = null;
+    try {
+      window.__ui.handleMuteTap();
+    } catch (e) {
+      firstError = e.message;
+    }
+    window.__ui.handleMuteTap();
+    return { firstError, writes: window.__muteWrites, state: window.__game.state };
+  });
+  await faultPage.close();
+}
+out.storageFaultOk = out.storageFault.firstError === null
+  && out.storageFault.writes.join(',') === 'true,false'
+  && out.storageFault.state === 'getready';
+
 out.externalRequests = [...external];
 out.errors = errors;
 console.log(JSON.stringify(out, null, 2));
@@ -161,6 +215,7 @@ const pass =
   out.buttons.yellow.widthCss > out.buttons.green.widthCss * 1.25 &&
   Math.abs(out.buttons.yellow.widthCss - 216) < 12 &&
   edgeRevive && edgeRevive.state === 'play' &&
+  out.storageFaultOk &&
   external.size === 0 && errors.length === 0;
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await browser.close();

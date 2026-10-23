@@ -2,7 +2,10 @@
   "name": "flappybird-remake",
   "private": true,
   "description": "Flappy Bird faithful H5 remake: single-file index.html + dev.html, with build tools and Playwright gates",
-  "license": "AGPL-3.0-only",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "python3 tools/pack_single_file.py",
     "test": "bash testing/run-all.sh",

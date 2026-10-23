@@ -298,11 +298,19 @@ const MUTE_STORAGE_KEY = "flappy_muted";
 const BEST_SCORE_STORAGE_KEY = "flappy_bestScore";
 
 function readStoredMuted() {
-  return String(storage.getItem(MUTE_STORAGE_KEY)) === "true";
+  try {
+    return String(storage.getItem(MUTE_STORAGE_KEY)) === "true";
+  } catch {
+    return false;
+  }
 }
 
 function writeStoredMuted(muted) {
-  storage.setItem(MUTE_STORAGE_KEY, String(muted));
+  try {
+    storage.setItem(MUTE_STORAGE_KEY, String(muted));
+  } catch {
+    return;
+  }
 }
 
 function readStoredBestScore() {
