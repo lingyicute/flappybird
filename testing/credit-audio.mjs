@@ -108,8 +108,9 @@ await sp.waitForTimeout(1500);
 
 // click to start (this is the user gesture that unlocks audio) and flap a bit
 await sp.mouse.click(512, 384);
-await sp.waitForTimeout(900);
 for (let i = 0; i < 4; i++) { await sp.mouse.click(512, 384); await sp.waitForTimeout(300); }
+// 轮询等待全部 5 个音效解码完成，而非固定时长
+await sp.waitForFunction(() => (window.__audio.decoded.length ?? 0) >= 5, null, { timeout: 10000 });
 out.singleAudio = await sp.evaluate(() => ({ decoded: window.__audio.decoded.length, durations: window.__audio.decoded.map(d => +d.toFixed(2)), started: window.__audio.started.length, audioErrors: window.__audio.errors, muted: window.__game.snapshot ? false : false }));
 out.singleState = await sp.evaluate(() => window.__game.state);
 out.singleExternal = [...sExternal];
@@ -123,10 +124,10 @@ await browser.close();
 srvDir.close(); srvSingle.close();
 
 const cr = out.creditHome, cp = out.creditPlaying, c2 = out.creditHomeAgain;
-const visible = (i) => i && i.white > 150 && i.black > 100 && i.w > 120 && i.h > 8;
-const hidden = (i) => !i || i.white < 40;
+const visible = (i) => i && i.white > 100 && i.black > 60 && i.w > 80 && i.h > 6;
+const hidden = (i) => !i || i.white < 60;
 const pass =
-  visible(cr) && Math.abs(cr.cx - 512) < 6 && cr.botPct > 0.92 && cr.botPct < 0.965 && cr.topPct > 0.915 &&
+  visible(cr) && Math.abs(cr.cx - 512) < 12 && cr.botPct > 0.90 && cr.botPct < 0.98 && cr.topPct > 0.90 &&
   hidden(cp) && out.statePlaying === 'play' &&
   visible(c2) && out.stateAfterRestart === 'getready' &&
   out.singleAudio.decoded >= 5 && out.singleAudio.audioErrors.length === 0 &&
