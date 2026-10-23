@@ -152,10 +152,14 @@ python3 tools/pack_single_file.py
 The Playwright checks exercise the game and audit the single-file build. Install the development dependencies and Chromium once, then run:
 
 ```bash
-npm install
-npx playwright install chromium
+npm ci
+npx playwright install --with-deps chromium
 npm test
 ```
+
+On Linux, `--with-deps` installs the system libraries Chromium needs and may
+require administrator privileges. On macOS or Windows, use
+`npx playwright install chromium` instead.
 
 To run the checks against the `dev.html` entry instead:
 
@@ -163,7 +167,7 @@ To run the checks against the `dev.html` entry instead:
 npm run test:dev
 ```
 
-Testing requires Node.js, Python 3, Bash, and Playwright's Chromium browser. These are **development/test tools only**; they are not needed to play `index.html`.
+Testing requires Node.js 20 or newer, Python 3, Bash, and Playwright's Chromium browser. These are **development/test tools only**; they are not needed to play `index.html`.
 
 ### Repository layout
 
