@@ -29,12 +29,7 @@ jobs:
 
       - name: Install Playwright Chromium + system libraries
         run: |
-          npx playwright install chromium
-          sudo apt-get update -y -qq
-          sudo apt-get install -y -qq \
-            libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
-            libgbm1 libgtk-3-0 libpango-1.0-0 libxcomposite1 libxdamage1 \
-            libxfixes3 libxkbcommon0 libxrandr2 libasound2
+          npx playwright install --with-deps chromium
 
       - name: Build single-file bundle
         run: npm run build
