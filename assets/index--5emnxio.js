@@ -48,43 +48,12 @@ function createStore(initialValue, isEqual) {
   };
 }
 
-function samePublishedState(a, b) {
-  return a.state === b.state && a.score === b.score && a.bestScore === b.bestScore;
-}
-
-const gameStateStore = createStore(
-  { state: "getready", score: 0, bestScore: 0 },
-  samePublishedState,
-);
 const assetsLoadedStore = createStore(false, (a, b) => a === b);
 // A required asset (the atlas or a sprite) failed to load. The overlay then
 // stays up and turns into a retry prompt: fading it out over a playfield with
 // no pipes, no ground and no buttons would ship a game the player can die in
 // but never see.
 const assetsLoadErrorStore = createStore(false, (a, b) => a === b);
-
-function afterWindowLoad(task) {
-  const defer = () => setTimeout(task, 0);
-  if (document.readyState === "complete") defer();
-  else window.addEventListener("load", defer, { once: true });
-}
-
-function runOutsidePlay(task) {
-  if (gameStateStore.getSnapshot().state !== "play") {
-    task();
-    return;
-  }
-  const unsubscribe = gameStateStore.subscribe(() => {
-    if (gameStateStore.getSnapshot().state !== "play") {
-      unsubscribe();
-      task();
-    }
-  });
-}
-
-function schedulePostLoad(task) {
-  afterWindowLoad(() => runOutsidePlay(task));
-}
 
 // --------------------------------------------------- simulation constants ---
 
@@ -190,8 +159,11 @@ function writeStoredMuted(muted) {
 
 function readStoredBestScore() {
   try {
-    const parsed = parseInt(storage.getItem(BEST_SCORE_STORAGE_KEY) ?? "0", 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    const parsed = Number(storage.getItem(BEST_SCORE_STORAGE_KEY) ?? "0");
+    // Scores are written as integers and rendered one decimal digit at a time.
+    // Unsafe integers can stringify with an exponent, while parseInt also used
+    // to accept partially numeric garbage; neither is a valid saved score.
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
   } catch {
     return 0;
   }
@@ -2458,6 +2430,7 @@ const SOUND_URLS = {
 const decodedBuffers = {};
 let audioCtx = null;
 let masterGainNode = null;
+let audioInitPromise = null;
 
 const audioEngine = {
   ensureContext() {
@@ -2479,7 +2452,13 @@ const audioEngine = {
   },
 
   async init() {
-    if (!this.ensureContext()) return;
+    if (audioInitPromise) return audioInitPromise;
+    try {
+      if (!this.ensureContext()) return;
+    } catch (err) {
+      console.error("Failed to initialize audio", err);
+      return;
+    }
     const loads = Object.keys(SOUND_URLS).map(async (name) => {
       try {
         const raw = await (await fetch(SOUND_URLS[name])).arrayBuffer();
@@ -2488,7 +2467,8 @@ const audioEngine = {
         console.error(`Failed to load audio: ${name}`, err);
       }
     });
-    await Promise.all(loads);
+    audioInitPromise = Promise.all(loads);
+    await audioInitPromise;
   },
 
   play(name) {
@@ -2682,14 +2662,21 @@ class GameApp {
     if (this.reviveAvailable()) this.game.revive();
   }
 
+  handleAssetsLoaded() {
+    assetsLoadedStore.publish(true);
+    // Audio is non-critical, so do not make the loading overlay wait for it;
+    // start decoding now instead of waiting for window.load and then for the
+    // player to leave `play` (which could silence an entire first run).
+    audioEngine.init().catch((err) => {
+      console.error("Failed to initialize audio", err);
+    });
+  }
+
   start() {
     this.renderer.loadAll().then(
-      () => assetsLoadedStore.publish(true),
+      () => this.handleAssetsLoaded(),
       () => assetsLoadErrorStore.publish(true),
     );
-    schedulePostLoad(() => {
-      audioEngine.init();
-    });
     this.unsubscribeSound = this.game.onSound((effect) => audioEngine.play(effect));
     this.unsubscribeBestScore = this.game.onBestScoreChanged(writeStoredBestScore);
     window.__game = this.game;
@@ -2711,7 +2698,7 @@ class GameApp {
   retryLoad() {
     assetsLoadErrorStore.publish(false);
     this.renderer.loadAll().then(
-      () => assetsLoadedStore.publish(true),
+      () => this.handleAssetsLoaded(),
       () => assetsLoadErrorStore.publish(true),
     );
   }
@@ -2845,7 +2832,6 @@ class GameApp {
       this.screenShake.trigger();
     }
     this.lastState = snap.state;
-    gameStateStore.publish(this.game.publishedState);
 
     if (!this.renderer.isLoaded()) return;
 
