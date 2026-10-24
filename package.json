@@ -12,7 +12,7 @@
     "test:dev": "ENTRY=dev.html bash testing/run-all.sh"
   },
   "devDependencies": {
-    "acorn": "^8.14.0",
+    "acorn": "^8.19.0",
     "playwright": "^1.47.2"
   }
 }

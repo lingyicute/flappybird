@@ -66,7 +66,7 @@ out.statePlaying = await page.evaluate(() => window.__game.state);
 // and must come back on the home screen after a restart
 let st = await page.evaluate(() => window.__game.state);
 for (let i = 0; i < 60 && st !== 'gameover'; i++) { await page.waitForTimeout(250); st = await page.evaluate(() => window.__game.state); }
-await page.waitForTimeout(1600);
+await page.waitForTimeout(1900);   // buttons accept presses 1.55 s after death
 for (const frac of [0.707, 0.7, 0.715, 0.695]) {
   await page.mouse.click(512, 768 * frac);
   await page.waitForTimeout(180);

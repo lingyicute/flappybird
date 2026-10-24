@@ -2386,7 +2386,11 @@ class InputRouter {
   }
 
   gameOverButtonsActive() {
-    return this.game.stateElapsed >= BUTTONS_APPEAR_DELAY;
+    // "active" has to mean fully painted, not "the fade just started": the
+    // buttons fade in from BUTTONS_APPEAR_DELAY over FADE_DURATION, and at the
+    // old threshold a press landed on a button whose alpha was still 0.03 -
+    // invisible to the player, yet it already restarted the run.
+    return this.game.stateElapsed >= BUTTONS_APPEAR_DELAY + FADE_DURATION;
   }
 }
 

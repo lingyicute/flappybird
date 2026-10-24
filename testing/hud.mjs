@@ -90,7 +90,7 @@ const dieOnce = async () => {
   }
   const t1 = Date.now(); let s = await snap();
   while (s.state !== 'gameover' && Date.now() - t1 < 15000) { await page.waitForTimeout(200); s = await snap(); }
-  await page.waitForTimeout(1800);
+  await page.waitForTimeout(1900);                   // buttons accept presses 1.55 s after death
   return s;
 };
 out.death = await dieOnce();
