@@ -1,7 +1,9 @@
 // architecture map: top-level declarations sorted by size with their call coverage
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-const file = process.argv[2] ?? 'assets/index-Dm5mUOvC.js';
+// default to the hashed bundle in assets/ (its name rolls with its content)
+const file = process.argv[2]
+  ?? 'assets/' + readdirSync('assets').find((f) => /^index-.*\.js$/.test(f));
 const src = readFileSync(file, 'utf8');
 const decls = JSON.parse(execSync(`node tools/decls.mjs ${file}`).toString());
 const cov = JSON.parse(readFileSync('.cov.json', 'utf8'));   // [start,end,count,name] from coverage.mjs

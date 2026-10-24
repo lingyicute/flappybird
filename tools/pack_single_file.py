@@ -2,6 +2,7 @@
 """Pack the build into one self-contained .html file.
 Usage: python3 tools/pack_single_file.py [output_html_path]"""
 import base64
+import glob
 import os
 import re
 import sys
@@ -22,13 +23,23 @@ def replace_once(text, old, new):
     return text.replace(old, new)
 
 
+def find_asset(pattern):
+    """Resolve a hashed asset name: the hash is a cache-busting token that
+    rolls with the content, so the build must never spell it out."""
+    matches = sorted(glob.glob(os.path.join(SITE, "assets", pattern)))
+    assert len(matches) == 1, f"expected exactly one assets/{pattern}, found {len(matches)}"
+    return matches[0]
+
+
 atlas = data_uri("assets/atlas-D7zSkRSP.webp", "image/webp")
 logo = data_uri("sprites/logo.png", "image/png")
 font = data_uri("fonts/Jersey10-Regular.woff2", "font/woff2")
 icon = data_uri("favicon-96x96.png", "image/png")
 
 # ------------------------------------------------------------------- CSS ---
-css = open(os.path.join(SITE, "assets/index-CsU9WTOK.css"), encoding="utf-8").read()
+css_path = find_asset("index-*.css")
+css_name = os.path.basename(css_path)
+css = open(css_path, encoding="utf-8").read()
 css = re.sub(
     r"src:\s*url\([^)]*Jersey10-Regular\.woff2\)[^;]*;",
     f'src: url({font}) format("woff2");',
@@ -38,7 +49,9 @@ css = re.sub(
 assert "Jersey10-Regular" not in css and ".woff2" not in css, "un-inlined font reference left in CSS"
 
 # -------------------------------------------------------------------- JS ---
-js = open(os.path.join(SITE, "assets/index-Dm5mUOvC.js"), encoding="utf-8").read()
+js_path = find_asset("index-*.js")
+js_name = os.path.basename(js_path)
+js = open(js_path, encoding="utf-8").read()
 
 # The font is deliberately not in this map: the stylesheet declares
 # @font-face Jersey10 and owns the one and only copy of the font file. The
@@ -88,9 +101,12 @@ html = re.sub(
 )
 html = replace_once(html, "<style>", "<style>\n/* inlined by tools/pack_single_file.py */")
 html = replace_once(html, "</style>", "</style>\n    <style>\n" + css + "\n    </style>")
+# dev.html keeps the stylesheet ahead of the module script (a preceding
+# stylesheet blocks module execution, so the @font-face is registered before
+# the bundle asks document.fonts for Jersey10); strip both lines here.
 html = re.sub(
-    r'    <script type="module" crossorigin src="[^"]*index-Dm5mUOvC\.js"></script>\n'
-    r'    <link rel="stylesheet" crossorigin href="[^"]*index-CsU9WTOK\.css">\n',
+    r'    <link rel="stylesheet" crossorigin href="[^"]*' + re.escape(css_name) + r'">\n'
+    r'    <script type="module" crossorigin src="[^"]*' + re.escape(js_name) + r'"></script>\n',
     "",
     html,
 )

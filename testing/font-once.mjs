@@ -36,7 +36,9 @@ const out = {};
 const html = fs.readFileSync(singlePath, 'utf8');
 out.fontPayloads = (html.match(/data:font\/woff2;base64,/g) || []).length;
 // the bundle must not reference the font file any more (with or without leading / or ./)
-const bundle = fs.readFileSync(path.join(dir, 'assets/index-Dm5mUOvC.js'), 'utf8');
+// (the bundle file name carries a content hash: resolve it by pattern)
+const bundleName = fs.readdirSync(path.join(dir, 'assets')).find((f) => /^index-.*\.js$/.test(f));
+const bundle = fs.readFileSync(path.join(dir, 'assets', bundleName), 'utf8');
 out.bundleFontRefs = (bundle.match(/\bfonts\/|Jersey10-Regular|\.woff2\b/g) || []).length;
 
 // ------------------------------------------------------------ 2. in the page --

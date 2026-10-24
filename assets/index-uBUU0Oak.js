@@ -2708,6 +2708,9 @@ class GameApp {
   };
 
   handleKeyDown = (event) => {
+    // The loading overlay blocks pointer input; block keys as well, or a
+    // Space press before the assets arrive would start a run nobody can see.
+    if (!this.renderer.isLoaded()) return;
     const isFlapKey = event.code === "Space" || event.code === "ArrowUp";
     if (isFlapKey || (this.game.state === "play" && SCROLL_KEYS.has(event.code))) {
       event.preventDefault();

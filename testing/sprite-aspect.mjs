@@ -4,12 +4,14 @@
 // quarter too tall because its frame is 206x1024 while the sprite asked for
 // 26x160.
 //   node sprite-aspect.mjs <siteDir>
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import * as acorn from 'acorn';
 
 const dir = path.resolve(process.argv[2] ?? '.');
-const js = readFileSync(path.join(dir, 'assets/index-Dm5mUOvC.js'), 'utf8');
+// the bundle file name carries a content hash: resolve it by pattern
+const bundleName = readdirSync(path.join(dir, 'assets')).find((f) => /^index-.*\.js$/.test(f));
+const js = readFileSync(path.join(dir, 'assets', bundleName), 'utf8');
 const ast = acorn.parse(js, { ecmaVersion: 2022, sourceType: 'module', allowAwaitOutsideFunction: true });
 
 // pull the two literal tables out of the bundle and evaluate them: the sprite

@@ -18,6 +18,8 @@ body {
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
+  /* iOS: no long-press callout on the boot splash artwork while it shows */
+  -webkit-touch-callout: none;
 }
 canvas {
   background: #111;

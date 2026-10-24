@@ -1,7 +1,11 @@
 // dump top-level declaration ranges of a bundle as JSON (shared by the analysis tools)
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import * as acorn from 'acorn';
-const src = readFileSync(process.argv[2] ?? 'assets/index-Dm5mUOvC.js', 'utf8');
+// default to the hashed bundle in assets/ (its name rolls with its content)
+const src = readFileSync(
+  process.argv[2] ?? 'assets/' + readdirSync('assets').find((f) => /^index-.*\.js$/.test(f)),
+  'utf8',
+);
 const ast = acorn.parse(src, { ecmaVersion:2022, sourceType:'module', allowAwaitOutsideFunction:true, locations:true });
 const out = [];
 for (const st of ast.body) {

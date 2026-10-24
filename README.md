@@ -179,17 +179,20 @@ Testing requires Node.js 20 or newer, Python 3, Bash, and Playwright's Chromium 
 | `tools/` | the packer and the analysis helpers (see below) |
 | `testing/` | the Playwright gates, one file per behaviour |
 
-`assets/index-Dm5mUOvC.js` is the single source of truth for the game: `index.html` is
-generated from it, so after changing it, always re-run the packer and commit the
-resulting `index.html` as well (the `packed` gate checks exactly that).
+`assets/index-<hash>.js` — the hash is a cache-busting token that rolls with the
+content — is the single source of truth for the game: `index.html` is generated
+from it, so after changing it, always re-run the packer and commit the resulting
+`index.html` as well (the `packed` gate checks exactly that). The packer, the
+gates and the analysis helpers resolve the hashed name by pattern, so rolling
+the hash only touches `dev.html`.
 
 ### Analysis helpers
 
 ```bash
-node tools/deadcode.mjs assets/index-Dm5mUOvC.js   # unreachable top-level declarations
+node tools/deadcode.mjs   # unreachable top-level declarations (defaults to the assets bundle)
 node tools/coverage.mjs .           # V8 function coverage from an automated session
 node tools/map.mjs                  # size and coverage map of the bundle
-node tools/decls.mjs assets/index-Dm5mUOvC.js      # the top-level declarations
+node tools/decls.mjs                # the top-level declarations
 ```
 
 `tools/coverage.mjs` writes `.cov.json`, which `tools/map.mjs` turns into the map.
