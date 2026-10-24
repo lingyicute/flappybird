@@ -4,3 +4,6 @@ node_modules/
 # screenshots / dumps written by the gates and by tools/coverage.mjs
 testing/*.png
 .cov.json
+
+# staged GitHub Pages payload built by the deploy job
+.pages-site/

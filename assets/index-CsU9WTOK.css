@@ -6,11 +6,18 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
+  /* the playfield never scrolls: also opt out of the browser's overscroll
+     gestures (pull-to-refresh, edge swipe) that would navigate away mid-run */
+  overscroll-behavior: none;
 }
 body {
   background: #000;
   color: #fff;
   font-family: system-ui, sans-serif;
+  /* a tap-heavy game: no grey flash and no accidental text selection on taps */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
 canvas {
   background: #111;
