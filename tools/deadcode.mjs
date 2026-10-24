@@ -3,10 +3,12 @@
 // Top level of the bundle is a flat list of declarations; everything runs once.
 // A binding is LIVE when some top-level statement outside a declaration, or some
 // declaration that is itself live, references it. The rest is unreachable code.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import * as acorn from 'acorn';
 
-const file = process.argv[2] ?? 'assets/index-Dm5mUOvC.js';
+// default to the hashed bundle in assets/ (its name rolls with its content)
+const file = process.argv[2]
+  ?? 'assets/' + readdirSync('assets').find((f) => /^index-.*\.js$/.test(f));
 const src = readFileSync(file, 'utf8');
 const ast = acorn.parse(src, { ecmaVersion: 2022, sourceType: 'module', allowAwaitOutsideFunction: true, locations: true, ranges: true });
 

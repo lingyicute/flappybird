@@ -17,8 +17,8 @@ const MIME = {
 const server = http.createServer((req, res) => {
   const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   let f = path.join(dir, p);
-  // Serve `dev.html` so V8 reports coverage against `assets/index-Dm5mUOvC.js`
-  // rather than an anonymous inline script in `index.html`.
+  // Serve `dev.html` so V8 reports coverage against the hashed bundle in
+  // `assets/` rather than an anonymous inline script in `index.html`.
   if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'dev.html');
   if (!fs.existsSync(f)) { res.writeHead(404); res.end('nf'); return; }
   res.writeHead(200, { 'content-type': MIME[path.extname(f)] ?? 'application/octet-stream' });
@@ -32,7 +32,8 @@ const fns = [];
 const collect = async (p) => {
   const c = await p.coverage.stopJSCoverage();
   for (const e of c) {
-    if (e.url.includes('index-Dm5mUOvC.js')) {
+    // the hashed bundle name rolls with its content: match it by pattern
+    if (/\/assets\/index-[\w-]+\.js$/.test(e.url)) {
       fns.push(...e.functions.map((f) => [
         f.ranges[0].startOffset, f.ranges[0].endOffset, f.ranges[0].count, f.functionName || '',
       ]));
@@ -118,7 +119,8 @@ server.close();
 writeFileSync('.cov.json', JSON.stringify(fns));
 
 // ---- map to the bundle and report per-declaration coverage
-const bundlePath = path.join(dir, 'assets/index-Dm5mUOvC.js');
+const bundleName = fs.readdirSync(path.join(dir, 'assets')).find((f) => /^index-.*\.js$/.test(f));
+const bundlePath = path.join(dir, 'assets', bundleName);
 const src = fs.readFileSync(bundlePath, 'utf8');
 const decls = JSON.parse(execSync(`node tools/decls.mjs ${bundlePath}`).toString());
 const never = [];
