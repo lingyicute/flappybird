@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-orange.svg" alt="License: AGPL-3.0"></a>
-  <a href="./index.html"><img src="https://img.shields.io/badge/Single%20File-174%20KB-blue" alt="Self-contained HTML, approximately 174 KB"></a>
+  <a href="./index.html"><img src="https://img.shields.io/badge/Single%20File-177%20KB-blue" alt="Self-contained HTML, approximately 177 KB"></a>
   <a href="https://github.com/lingyicute/flappybird"><img src="https://img.shields.io/badge/Runtime%20Setup-None-brightgreen" alt="No runtime setup"></a>
   <a href="https://github.com/lingyicute/flappybird"><img src="https://img.shields.io/badge/Network%20Requests-Zero-brightgreen" alt="Zero network requests"></a>
   <a href="https://github.com/lingyicute/flappybird"><img src="https://img.shields.io/github/stars/lingyicute/flappybird?style=flat&color=yellow" alt="GitHub Stars"></a>

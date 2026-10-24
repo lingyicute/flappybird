@@ -962,12 +962,16 @@ function renderEasterEgg(ctx, renderer, frameW, frameH, elapsed, inRoyale) {
       "center",
     );
   }
+  // Fit the label that is actually painted: in Royale mode the question is a
+  // word longer ("Classic" vs "Royale"), and measuring the classic-mode string
+  // let the wider label escape the card's text box.
+  const switchLabel = inRoyale ? "Switch to Classic Mode?" : "Switch to Royale Mode?";
   drawText(
     ctx,
-    inRoyale ? "Switch to Classic Mode?" : "Switch to Royale Mode?",
+    switchLabel,
     0,
     inRoyale ? layout.line1Y : layout.line2Y,
-    eggFitText(ctx, "Switch to Royale Mode?", EGG_LINE2_SIZE, maxTextW),
+    eggFitText(ctx, switchLabel, EGG_LINE2_SIZE, maxTextW),
     "center",
   );
   drawEggButton(ctx, renderer, "green", "SWITCH", 0, layout.yesY);
@@ -1783,7 +1787,10 @@ const HOP_JITTER_STEPS = 4;
 const NAME_DEDUP_TRIES = 8;
 const FEED_MAX_AGE_SECONDS = 2.8;
 const FEED_MAX_ITEMS = 3;
-const BUS_ALTITUDE_Y = 0.9;
+// High enough to clear the home-screen logo (the HUD message is painted over the
+// world layer and used to swallow the teaser bus, leaving a stray grey tab above
+// the artwork) and the tallest pipe lip / the "N LEFT" HUD row while flying.
+const BUS_ALTITUDE_Y = 1.12;
 const BOT_TINTS = [
   "#ffc9c9",
   "#c9e0ff",
@@ -2001,8 +2008,8 @@ class RoyaleController {
       return {
         bots: [],
         bus: { x: 0, y: BUS_ALTITUDE_Y },
-        birdsLeft: this.match?.totalBirds ?? 30,
-        totalBirds: this.match?.totalBirds ?? 30,
+        birdsLeft: this.match?.totalBirds ?? ROYALE_BOT_COUNT + 1,
+        totalBirds: this.match?.totalBirds ?? ROYALE_BOT_COUNT + 1,
         feed: [],
         placement: null,
         winBanner: false,
@@ -2198,10 +2205,19 @@ class Camera {
   }
 }
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function prefersReducedMotion() {
+  return typeof matchMedia == "function" && matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
 class ScreenShake {
   remaining = 0;
 
   trigger() {
+    // the death shake is the one purely decorative motion in the game: honour
+    // the OS-level "reduce motion" preference and skip it
+    if (prefersReducedMotion()) return;
     this.remaining = SHAKE_DURATION;
   }
 
@@ -2334,7 +2350,12 @@ class InputRouter {
       this.pressedGameOverButton = null;
       this.game.flap();
     } else if (state === "gameover") {
-      const hit = hitTestGameOverButtons(world.x, world.y, this.currentGameOverLayout());
+      // Only remember a press once the buttons are actually on screen: holding
+      // a finger on an invisible (still fading in) button and releasing after
+      // it became active must not trigger it.
+      const hit = this.gameOverButtonsActive()
+        ? hitTestGameOverButtons(world.x, world.y, this.currentGameOverLayout())
+        : null;
       this.pressedGameOverButton = hit ? hit.kind : null;
     }
   }
