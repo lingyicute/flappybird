@@ -55,6 +55,14 @@ canvas {
 .loading-overlay[data-loaded="true"] .loading-overlay__spinner {
   animation: none;
 }
+/* a failed load is not still-loading: stop the spinner and tint the prompt */
+.loading-overlay[data-error="true"] .loading-overlay__spinner {
+  animation: none;
+  border-top-color: rgba(255, 255, 255, 0.4);
+}
+.loading-overlay[data-error="true"] .loading-overlay__label {
+  color: #ffe3e3;
+}
 .loading-overlay__logo {
   image-rendering: pixelated;
   width: min(78vw, 460px);
