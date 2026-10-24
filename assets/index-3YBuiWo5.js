@@ -57,6 +57,11 @@ const gameStateStore = createStore(
   samePublishedState,
 );
 const assetsLoadedStore = createStore(false, (a, b) => a === b);
+// A required asset (the atlas or a sprite) failed to load. The overlay then
+// stays up and turns into a retry prompt: fading it out over a playfield with
+// no pipes, no ground and no buttons would ship a game the player can die in
+// but never see.
+const assetsLoadErrorStore = createStore(false, (a, b) => a === b);
 
 function afterWindowLoad(task) {
   const defer = () => setTimeout(task, 0);
@@ -364,8 +369,14 @@ class SpriteRenderer {
           });
         }
       })
-      .catch(() => {
-        console.error(`Failed to load sprite atlas: ${ATLAS_URL}`);
+      .catch((err) => {
+        // The atlas owns the background, the pipes, the ground and every
+        // button: without it the playfield is an empty sky. That is not a
+        // degraded mode, it is a broken game, so the failure must reach the
+        // caller and raise the retry UI instead of resolving into
+        // `loaded = true` and fading the overlay out.
+        console.error(`Failed to load sprite atlas: ${ATLAS_URL}`, err);
+        throw err;
       });
 
     const spriteTasks = entries
@@ -375,8 +386,11 @@ class SpriteRenderer {
           .then((img) => {
             this.images.set(name, fullImageRegion(img));
           })
-          .catch(() => {
-            console.error(`Failed to load sprite: ${name}`);
+          .catch((err) => {
+            // Same contract as the atlas: the bird, the digits and the message
+            // art are not optional, so a fetch failure must abort the load.
+            console.error(`Failed to load sprite: ${name}`, err);
+            throw err;
           }),
       );
 
@@ -2669,7 +2683,10 @@ class GameApp {
   }
 
   start() {
-    this.renderer.loadAll().then(() => assetsLoadedStore.publish(true));
+    this.renderer.loadAll().then(
+      () => assetsLoadedStore.publish(true),
+      () => assetsLoadErrorStore.publish(true),
+    );
     schedulePostLoad(() => {
       audioEngine.init();
     });
@@ -2686,6 +2703,17 @@ class GameApp {
     this.handleResize();
     this.lastTime = performance.now();
     this.frameLoop.start();
+  }
+
+  // The retry prompt's way out: re-run the whole asset load. Clearing the
+  // error first puts the overlay back into its plain loading state while the
+  // retry is in flight, and a second failure raises it again.
+  retryLoad() {
+    assetsLoadErrorStore.publish(false);
+    this.renderer.loadAll().then(
+      () => assetsLoadedStore.publish(true),
+      () => assetsLoadErrorStore.publish(true),
+    );
   }
 
   dispose() {
@@ -2866,6 +2894,11 @@ class GameApp {
 
 // ------------------------------------------------------------ bootstrap ---
 
+// ASCII on purpose: the overlay is painted by the system font stack before any
+// game asset exists, and the error label has to survive every locale.
+const LOADING_LABEL = "Loading…";
+const LOAD_ERROR_LABEL = "FAILED TO LOAD - TAP TO RETRY";
+
 function mountApp(root) {
   const canvas = document.createElement("canvas");
   canvas.style.display = "block";
@@ -2885,7 +2918,7 @@ function mountApp(root) {
 
   const label = document.createElement("div");
   label.className = "loading-overlay__label";
-  label.textContent = "Loading…";
+  label.textContent = LOADING_LABEL;
 
   overlay.append(logo, spinner, label);
   root.replaceChildren(canvas, overlay);
@@ -2894,7 +2927,20 @@ function mountApp(root) {
     overlay.dataset.loaded = String(assetsLoadedStore.getSnapshot());
   });
 
+  // while a required asset is missing the overlay is the only UI left: say
+  // what happened and let a tap retry, instead of spinning forever
+  const applyLoadError = () => {
+    const failed = assetsLoadErrorStore.getSnapshot();
+    overlay.dataset.error = String(failed);
+    label.textContent = failed ? LOAD_ERROR_LABEL : LOADING_LABEL;
+  };
+  applyLoadError();
+  const unsubscribeLoadError = assetsLoadErrorStore.subscribe(applyLoadError);
+
   const app = new GameApp(canvas);
+  overlay.addEventListener("click", () => {
+    if (assetsLoadErrorStore.getSnapshot()) app.retryLoad();
+  });
   app.start();
   window.addEventListener(
     "pagehide",
@@ -2906,6 +2952,7 @@ function mountApp(root) {
         app.frameLoop.stop();
       } else {
         unsubscribeOverlay();
+        unsubscribeLoadError();
         app.dispose();
       }
     },
