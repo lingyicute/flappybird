@@ -69,6 +69,8 @@ let flapped = 0;
 for (let attempt = 0; attempt < 4; attempt++) {
   const st = await snap();
   if (st.state === 'gameover') {
+    // the PLAY button only accepts presses once its fade-in has finished
+    await page.waitForFunction('window.__game.stateElapsed >= 1.6', null, { timeout: 10000 });
     for (const frac of [0.707, 0.7, 0.715, 0.695]) {
       await page.mouse.click(cx, box.y + box.height * frac);
       await page.waitForTimeout(180);
