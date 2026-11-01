@@ -2812,7 +2812,10 @@ class GameApp {
   }
 
   frame = (timestamp) => {
-    const dt = (timestamp - this.lastTime) / 1000;
+    // rAF timestamps are frame-start times and can precede the performance.now()
+    // reading taken on start/resume: a negative dt would drive the accumulator
+    // (and so the interpolation alpha) below zero and extrapolate backwards.
+    const dt = Math.max(0, (timestamp - this.lastTime) / 1000);
     if (this.easterEgg && !this.paused) {
       this.easterEgg.t += Math.min(Math.max(dt, 0), 0.1);
     }
