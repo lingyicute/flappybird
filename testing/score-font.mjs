@@ -100,3 +100,4 @@ const pass = okBox(out.hud) && okBox(out.playing) && okBox(out.playingTwoDigits)
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await browser.close();
 server.close();
+process.exit(pass ? 0 : 1);

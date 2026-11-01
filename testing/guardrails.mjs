@@ -333,3 +333,4 @@ const pass = out.skyOk && out.keyRepeatOk && out.pauseOk && out.royaleReviveOk
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await browser.close();
 server.close();
+process.exit(pass ? 0 : 1);

@@ -53,3 +53,4 @@ const pass =
   reqs.length === 0;
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await b.close(); inner.close(); outer.close();
+process.exit(pass ? 0 : 1);
