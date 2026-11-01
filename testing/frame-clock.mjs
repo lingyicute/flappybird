@@ -43,7 +43,7 @@ try {
   // synchronous: no real animation frame can interleave with the evaluate
   const result = await page.evaluate(() => {
     const ui = window.__ui;
-    ui.timestep.reset();
+    ui.timestep.accumulator = 0;
     ui.screenShake.remaining = 0.2;
     ui.lastTime = 5000;
     ui.frame(4950);

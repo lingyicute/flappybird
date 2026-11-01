@@ -11,7 +11,6 @@ const storage = (() => {
     return {
       getItem: (key) => (mem.has(key) ? mem.get(key) : null),
       setItem: (key, value) => mem.set(key, String(value)),
-      removeItem: (key) => mem.delete(key),
     };
   }
 })();
@@ -1352,14 +1351,6 @@ class FlappyGame {
     return this.elapsed - this.stateEnteredElapsed;
   }
 
-  get publishedState() {
-    return {
-      state: this.currentState,
-      score: this.score,
-      bestScore: this.bestScore,
-    };
-  }
-
   beginRun() {
     this.runId += 1;
     this.runSeed = this.nextSeed ?? randomSeed53();
@@ -1620,7 +1611,7 @@ class RoyaleBot {
       this.game.flap();
     }
 
-    const snap = this.game.snapshot;
+    const snap = this.snap ?? this.game.snapshot;
     this.prevY = snap.birdY;
     this.prevRot = snap.birdRot;
     this.prevX = this.x;
@@ -1628,7 +1619,11 @@ class RoyaleBot {
     if (this.dead) {
       this.game.step(SIM_DT);
       this.x -= WORLD_SCROLL_STEP;
-      if (this.x < OFFSCREEN_LEFT_X) this.finished = true;
+      if (this.x < OFFSCREEN_LEFT_X) {
+        this.finished = true;
+        this.snap = null;
+        return null;
+      }
       this.snap = this.game.snapshot;
       return null;
     }
@@ -1638,10 +1633,9 @@ class RoyaleBot {
     this.stepIndex += 1;
     this.snap = this.game.snapshot;
 
-    const pub = this.game.publishedState;
-    if (pub.state === "gameover") {
+    if (this.game.state === "gameover") {
       this.dead = true;
-      return { name: this.name, score: pub.score };
+      return { name: this.name, score: this.game.score };
     }
     return null;
   }
@@ -1924,6 +1918,7 @@ class RoyaleMatch {
       bot.game.playStep = source.playStep;
       bot.game.spawnCount = source.spawnCount;
       bot.game.prng.state = source.prng.state;
+      bot.snap = bot.game.snapshot;
       bot.pilot.resetAim();
       bot.needsSync = false;
     }
@@ -1996,7 +1991,7 @@ class RoyaleController {
 
   afterStep() {
     if (!this.active) return;
-    const state = this.game.publishedState.state;
+    const state = this.game.state;
     if (state === "play") {
       const isNewRun = this.matchRunId !== this.game.runId;
       const revivedFromGameOver = !isNewRun && this.prevState === "gameover";
@@ -2275,10 +2270,6 @@ class FixedTimestep {
       steps++;
     }
     return steps;
-  }
-
-  reset() {
-    this.accumulator = 0;
   }
 
   get alpha() {
@@ -2890,7 +2881,6 @@ class GameApp {
       this.handleResize();
     }
     if (snap.state === "gameover" && this.lastState !== "gameover") {
-      this.handleResize();
       this.screenShake.trigger();
     }
     this.lastState = snap.state;
