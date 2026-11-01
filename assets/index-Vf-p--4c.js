@@ -290,9 +290,15 @@ const loadImageElement = (url) =>
 
 const loadBitmap = async (url) => {
   if (typeof createImageBitmap != "function") return loadImageElement(url);
+  let res;
   try {
-    const blob = await (await fetch(url)).blob();
-    return await createImageBitmap(blob);
+    res = await fetch(url);
+  } catch {
+    return loadImageElement(url);
+  }
+  if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
+  try {
+    return await createImageBitmap(await res.blob());
   } catch {
     return loadImageElement(url);
   }
@@ -313,8 +319,19 @@ class SpriteRenderer {
   images = new Map();
   tintCache = new Map();
   loaded = false;
+  loadPromise = null;
 
-  async loadAll() {
+  loadAll() {
+    if (this.loaded) return Promise.resolve();
+    if (this.loadPromise) return this.loadPromise;
+    const task = this.loadMissing().finally(() => {
+      this.loadPromise = null;
+    });
+    this.loadPromise = task;
+    return task;
+  }
+
+  async loadMissing() {
     // The stylesheet already declares @font-face Jersey10, so loading that face
     // is all it takes. Registering a second FontFace here would put the very
     // same font file into the single-file release a second time.
@@ -330,32 +347,37 @@ class SpriteRenderer {
       });
 
     const entries = Object.entries(SPRITES);
-    const atlasTask = loadBitmap(ATLAS_URL)
-      .then((atlasImage) => {
-        for (const [name, spec] of entries) {
-          if (spec.source.kind !== "atlas") continue;
-          const rect = ATLAS_FRAMES[spec.source.frame];
-          this.images.set(name, {
-            image: atlasImage,
-            sx: rect.x,
-            sy: rect.y,
-            sw: rect.w,
-            sh: rect.h,
-          });
-        }
-      })
-      .catch((err) => {
-        // The atlas owns the background, the pipes, the ground and every
-        // button: without it the playfield is an empty sky. That is not a
-        // degraded mode, it is a broken game, so the failure must reach the
-        // caller and raise the retry UI instead of resolving into
-        // `loaded = true` and fading the overlay out.
-        console.error(`Failed to load sprite atlas: ${ATLAS_URL}`, err);
-        throw err;
-      });
+    const needsAtlas = entries.some(
+      ([name, spec]) => spec.source.kind === "atlas" && !this.images.has(name),
+    );
+    const atlasTask = needsAtlas
+      ? loadBitmap(ATLAS_URL)
+          .then((atlasImage) => {
+            for (const [name, spec] of entries) {
+              if (spec.source.kind !== "atlas") continue;
+              const rect = ATLAS_FRAMES[spec.source.frame];
+              this.images.set(name, {
+                image: atlasImage,
+                sx: rect.x,
+                sy: rect.y,
+                sw: rect.w,
+                sh: rect.h,
+              });
+            }
+          })
+          .catch((err) => {
+            // The atlas owns the background, the pipes, the ground and every
+            // button: without it the playfield is an empty sky. That is not a
+            // degraded mode, it is a broken game, so the failure must reach the
+            // caller and raise the retry UI instead of resolving into
+            // `loaded = true` and fading the overlay out.
+            console.error(`Failed to load sprite atlas: ${ATLAS_URL}`, err);
+            throw err;
+          })
+      : Promise.resolve();
 
     const spriteTasks = entries
-      .filter(([, spec]) => spec.source.kind === "image")
+      .filter(([name, spec]) => spec.source.kind === "image" && !this.images.has(name))
       .map(([name, spec]) =>
         loadBitmap(spec.source.src)
           .then((img) => {
@@ -2490,9 +2512,11 @@ const audioEngine = {
       return;
     }
     const loads = Object.keys(SOUND_URLS).map(async (name) => {
+      if (decodedBuffers[name]) return;
       try {
-        const raw = await (await fetch(SOUND_URLS[name])).arrayBuffer();
-        decodedBuffers[name] = await audioCtx.decodeAudioData(raw);
+        const res = await fetch(SOUND_URLS[name]);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        decodedBuffers[name] = await audioCtx.decodeAudioData(await res.arrayBuffer());
       } catch (err) {
         console.error(`Failed to load audio: ${name}`, err);
       }
@@ -2729,6 +2753,7 @@ class GameApp {
   // error first puts the overlay back into its plain loading state while the
   // retry is in flight, and a second failure raises it again.
   retryLoad() {
+    if (this.renderer.isLoaded() || this.renderer.loadPromise) return;
     assetsLoadErrorStore.publish(false);
     this.renderer.loadAll().then(
       () => this.handleAssetsLoaded(),
