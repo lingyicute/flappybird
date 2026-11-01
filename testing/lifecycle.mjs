@@ -71,6 +71,15 @@ try {
     assert.equal(await page.evaluate(() => window.__ui.paused), !paused, 'restored app must retain input listeners');
     await page.keyboard.press('KeyP');
   }
+  // A vsync timestamp slightly earlier than performance.now() must not rewind
+  // the interpolation accumulator or trigger a phantom screen shake.
+  await page.evaluate(() => {
+    const [id, cb] = testFrames.entries().next().value;
+    testFrames.delete(id);
+    cb(window.__ui.lastTime - 5);
+  });
+  assert.equal(await page.evaluate(() => window.__ui.timestep.accumulator === savedAccumulator), true, "negative frame delta must not rewind interpolation");
+  assert.equal(await page.evaluate(() => window.__ui.screenShake.remaining), 0, "negative frame delta must not activate screen shake");
   await page.evaluate(() => {
     const [id, cb] = testFrames.entries().next().value;
     testFrames.delete(id);

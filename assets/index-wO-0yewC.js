@@ -2211,7 +2211,8 @@ class ScreenShake {
   }
 
   advance(dt) {
-    this.remaining = Math.max(0, this.remaining - dt);
+    if (this.remaining <= 0) return { x: 0, y: 0 };
+    if (dt > 0) this.remaining = Math.max(0, this.remaining - dt);
     if (this.remaining === 0) return { x: 0, y: 0 };
     const decay = this.remaining / SHAKE_DURATION;
     const phase = (1 - decay) * SHAKE_CYCLES * 2 * Math.PI;
@@ -2221,6 +2222,8 @@ class ScreenShake {
     };
   }
 }
+
+const MAX_FRAME_DT = 0.25;
 
 class FixedTimestep {
   constructor(step, maxFrameSeconds) {
@@ -2233,6 +2236,7 @@ class FixedTimestep {
   accumulator = 0;
 
   advance(dt) {
+    if (dt <= 0) return 0;
     if (dt > this.maxFrameSeconds) {
       this.accumulator = 0;
       return 0;
@@ -2280,7 +2284,7 @@ class DynamicRenderScale {
   }
 
   record(dt) {
-    if (dt <= 0) return false;
+    if (dt <= 0 || dt > MAX_FRAME_DT) return false;
     if (dt < this.windowFastest) this.windowFastest = Math.max(dt, MIN_FRAME_SECONDS);
     this.windowSeconds += dt;
     this.windowFrames += 1;
@@ -2563,7 +2567,6 @@ const audioEngine = {
 const SCROLL_KEYS = new Set(["ArrowDown", "PageUp", "PageDown", "Home", "End"]);
 const WORLD_WIDTH = 1.44;
 const WORLD_HEIGHT = 2.56;
-const MAX_FRAME_DT = 0.25;
 
 class GameApp {
   constructor(canvas) {
@@ -2835,7 +2838,7 @@ class GameApp {
     // (and so the interpolation alpha) below zero and extrapolate backwards.
     const dt = Math.max(0, (timestamp - this.lastTime) / 1000);
     if (this.easterEgg && !this.paused) {
-      this.easterEgg.t += Math.min(Math.max(dt, 0), 0.1);
+      this.easterEgg.t += Math.min(dt, 0.1);
     }
     this.lastTime = timestamp;
 
