@@ -171,6 +171,9 @@ function readStoredBestScore() {
 
 function writeStoredBestScore(score) {
   try {
+    // Another tab may have saved a higher score since this page loaded: a stale
+    // in-memory best must never overwrite it.
+    if (score <= readStoredBestScore()) return;
     storage.setItem(BEST_SCORE_STORAGE_KEY, score.toString());
   } catch {
     return;

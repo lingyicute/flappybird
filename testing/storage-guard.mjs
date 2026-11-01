@@ -64,6 +64,24 @@ try {
     assert.deepEqual(errors, [], testCase.stored);
     await page.close();
   }
+  // A page that loaded with a stale best must not overwrite a higher score that
+  // another tab saved meanwhile, but must still save a genuinely higher one.
+  for (const { other, score, expected } of [
+    { other: '50', score: 7, expected: '50' },
+    { other: '3', score: 9, expected: '9' },
+  ]) {
+    const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
+    await page.goto(`http://127.0.0.1:${server.address().port}/${entry}`);
+    await page.waitForFunction('!!window.__game', null, { timeout: 20000 });
+    const saved = await page.evaluate(([other, score]) => {
+      localStorage.setItem('flappy_bestScore', other);
+      window.__game.score = score;
+      window.__game.transition('gameover');
+      return localStorage.getItem('flappy_bestScore');
+    }, [other, score]);
+    assert.equal(saved, expected, `stored ${other}, died with ${score}`);
+    await page.close();
+  }
   console.log('RESULT: PASS');
 } catch (error) {
   console.error(error);
