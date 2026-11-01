@@ -170,3 +170,4 @@ const pass =
   results.offlineReloadBestStored === String(results.gameover.best) &&
   external.size === 0 && errors.length === 0;
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
+process.exit(pass ? 0 : 1);

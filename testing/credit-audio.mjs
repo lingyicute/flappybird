@@ -135,3 +135,4 @@ const pass =
   out.externalRequests.length === 0 && out.errors.length === 0 &&
   out.singleExternal.length === 0 && out.singleErrors.length === 0;
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
+process.exit(pass ? 0 : 1);

@@ -116,3 +116,4 @@ const pass = out.cases.every((c) => c.ok) && external.size === 0 && errors.lengt
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 await browser.close();
 server.close();
+process.exit(pass ? 0 : 1);
