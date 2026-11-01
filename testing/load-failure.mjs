@@ -25,8 +25,11 @@ const MIME = {
   '.webmanifest': 'application/manifest+json', '.webp': 'image/webp',
   '.png': 'image/png', '.ico': 'image/x-icon', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2',
 };
+let spriteRequests = 0;
+let atlasHits = 0;
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (p.startsWith('/sprites/') && p !== '/sprites/logo.png') spriteRequests += 1;
   let f = path.join(dir, p);
   if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'dev.html');
   if (!fs.existsSync(f)) { res.writeHead(404); res.end('nf'); return; }
@@ -43,7 +46,7 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { const t = m.text(); if (m.type() === 'error' && !/Failed to load|404/.test(t)) errors.push('console: ' + t); });
 
 const out = {};
-await page.route('**/atlas-*.webp', (r) => r.fulfill({ status: 500, body: 'nope' }));
+await page.route('**/atlas-*.webp', (r) => { atlasHits += 1; return r.fulfill({ status: 500, body: 'nope' }); });
 await page.goto(`${origin}/`, { waitUntil: 'load' });
 await page.waitForFunction('!!window.__game && !!window.__ui', null, { timeout: 20000 });
 await page.waitForTimeout(1200);
@@ -84,7 +87,10 @@ await page.screenshot({ path: 'testing/lf-recovered.png' });
 await browser.close();
 server.close();
 
+out.atlasHitsWhileBlocked = atlasHits;
+out.spriteRequests = spriteRequests;
 const pass =
+  atlasHits === 2 && spriteRequests === 16 &&
   out.failed.loaded === false && out.failed.dataLoaded === 'false' && out.failed.dataError === 'true' &&
   /RETRY/.test(out.failed.label) && out.failed.visible && out.failed.spinnerStopped &&
   out.failed.atlasSprites.length === 0 &&
