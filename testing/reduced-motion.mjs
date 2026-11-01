@@ -48,6 +48,8 @@ for (const reducedMotion of ['no-preference', 'reduce']) {
     mqMatches: matchMedia('(prefers-reduced-motion: reduce)').matches,
     remaining: window.__ui.screenShake.remaining,
     offset: window.__ui.screenShake.advance(0),
+    afterNegativeDt: window.__ui.screenShake.advance(-0.01),
+    remainingAfterNegativeDt: window.__ui.screenShake.remaining,
   }));
   await context.close();
 }
@@ -58,7 +60,9 @@ const pass =
   out['no-preference'].mqMatches === false && out['no-preference'].remaining > 0.3 &&
   (out['no-preference'].offset.x !== 0 || out['no-preference'].offset.y !== 0) &&
   out.reduce.mqMatches === true && out.reduce.remaining === 0 &&
-  out.reduce.offset.x === 0 && out.reduce.offset.y === 0;
+  out.reduce.offset.x === 0 && out.reduce.offset.y === 0 &&
+  out.reduce.remainingAfterNegativeDt === 0 &&
+  out.reduce.afterNegativeDt.x === 0 && out.reduce.afterNegativeDt.y === 0;
 console.log(JSON.stringify(out, null, 2));
 console.log(pass ? 'RESULT: PASS' : 'RESULT: FAIL');
 process.exit(pass ? 0 : 1);
