@@ -28,15 +28,19 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 const page = await browser.newPage({ viewport: { width: 1024, height: 768 } });
-const fns = [];
+const fnMap = new Map();
 const collect = async (p) => {
   const c = await p.coverage.stopJSCoverage();
   for (const e of c) {
     // the hashed bundle name rolls with its content: match it by pattern
     if (/\/assets\/index-[\w-]+\.js$/.test(e.url)) {
-      fns.push(...e.functions.map((f) => [
-        f.ranges[0].startOffset, f.ranges[0].endOffset, f.ranges[0].count, f.functionName || '',
-      ]));
+      for (const f of e.functions) {
+        const { startOffset, endOffset, count } = f.ranges[0];
+        const key = `${startOffset}:${endOffset}`;
+        const prev = fnMap.get(key);
+        if (prev) prev[2] += count;
+        else fnMap.set(key, [startOffset, endOffset, count, f.functionName || '']);
+      }
     }
   }
 };
@@ -69,7 +73,7 @@ for (let i = 0; i < 140; i++) {
   await page.waitForTimeout(35);
 }
 await page.waitForTimeout(2200);
-await page.evaluate(() => { try { window.__game.revive(); } catch {} });
+await page.evaluate(() => { try { window.__ui.revive(); } catch {} });
 await page.waitForTimeout(800);
 await page.evaluate(() => { window.__game.birdY = Math.round(-0.8 * 1048576); });
 await page.waitForTimeout(2000);
@@ -116,6 +120,7 @@ console.log('royale steps(alive):', await p2.evaluate(() => [
 await collect(p2);
 await browser.close();
 server.close();
+const fns = [...fnMap.values()];
 writeFileSync('.cov.json', JSON.stringify(fns));
 
 // ---- map to the bundle and report per-declaration coverage
