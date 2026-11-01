@@ -1112,6 +1112,7 @@ class FlappyGame {
   prevPipeScroll = 0;
   nextSeed = null;
   runSeed = 0n;
+  runId = 0;
   simVersion = DEFAULT_SIM_VERSION;
   spawnCount = 0;
   prng = new SplitMix64(0n);
@@ -1338,6 +1339,7 @@ class FlappyGame {
   }
 
   beginRun() {
+    this.runId += 1;
     this.runSeed = this.nextSeed ?? randomSeed53();
     this.prng = new SplitMix64(this.runSeed);
     this.playStep = 0;
@@ -1957,6 +1959,7 @@ class RoyaleController {
   game;
   active;
   match = null;
+  matchRunId = 0;
   prevState = "getready";
   placement = null;
   winAtStep = null;
@@ -1973,8 +1976,9 @@ class RoyaleController {
     if (!this.active) return;
     const state = this.game.publishedState.state;
     if (state === "play") {
-      const revivedFromGameOver = this.prevState === "gameover";
-      if (this.prevState === "getready" || !this.match) this.beginMatch();
+      const isNewRun = this.matchRunId !== this.game.runId;
+      const revivedFromGameOver = !isNewRun && this.prevState === "gameover";
+      if (isNewRun || this.prevState === "getready" || !this.match) this.beginMatch();
       else this.placement = null;
 
       const match = this.match;
@@ -2024,6 +2028,7 @@ class RoyaleController {
   }
 
   beginMatch() {
+    this.matchRunId = this.game.runId;
     this.match = new RoyaleMatch(this.game.currentSeed, this.game.runSimVersion);
     this.placement = null;
     this.winAtStep = null;
@@ -2630,6 +2635,7 @@ class GameApp {
   }
 
   closeEasterEgg() {
+    if (!this.easterEgg) return;
     this.easterEgg = null;
     if (this.muteBeforeEgg !== null) {
       soundPrefs.setMuted(this.muteBeforeEgg);
@@ -2683,7 +2689,10 @@ class GameApp {
   }
 
   revive() {
-    if (this.reviveAvailable()) this.game.revive();
+    if (this.reviveAvailable()) {
+      this.paused = false;
+      this.game.revive();
+    }
   }
 
   handleAssetsLoaded() {
@@ -2795,7 +2804,7 @@ class GameApp {
   }
 
   handlePointerDown = (event) => {
-    if (event.button !== 0 || !event.isPrimary || this.paused) return;
+    if (!this.renderer.isLoaded() || event.button !== 0 || !event.isPrimary || this.paused) return;
     if (this.easterEgg) {
       this.easterEggPointer(event.clientX, event.clientY);
       return;
@@ -2817,6 +2826,7 @@ class GameApp {
   };
 
   handlePointerCancel = (event) => {
+    if (!event.isPrimary) return;
     this.inputRouter.handlePointerCancel();
     this.releaseCapture(event);
   };

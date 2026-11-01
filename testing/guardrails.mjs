@@ -194,6 +194,18 @@ const out = {};
       .filter((b) => b.alive && b.hopped)
       .map((b) => b.game.playStep - window.__game.playStep),
     strayPipeTimers: window.__royale.match.bots.filter((b) => 'pipeTimer' in b.game).length,
+    sameStepRestartNewMatch: (() => {
+      const g = window.__game, r = window.__royale;
+      g.birdY = Math.round(-0.98 * 1048576);
+      g.step(1 / 120);
+      r.afterStep();
+      const oldMatch = r.match;
+      g.restart();
+      g.flap();
+      g.step(1 / 120);
+      r.afterStep();
+      return r.match !== oldMatch && r.aliveBots() === 29;
+    })(),
   }));
   out.royaleRevive = { before, after };
   // the race must continue: same field, same eliminated birds, no stale placement, reset pilot schedule
@@ -206,7 +218,7 @@ const out = {};
     // whole hop (~13..135 steps in this race) behind, which is what left it
     // idling in an empty field after the revive
     && after.clockDrift.length > 0 && after.clockDrift.every((d) => Math.abs(d) <= 1)
-    && after.strayPipeTimers === 0;
+    && after.strayPipeTimers === 0 && after.sameStepRestartNewMatch;
   await page.close();
 }
 
@@ -261,13 +273,27 @@ const out = {};
   const afterDragRelease = await page.evaluate(() => ({
     state: window.__game.state, revived: window.__game.wasRevived,
   }));
+  // A non-primary pointercancel must not wipe an active primary button press
+  const nonPrimaryCancelPreserved = await page.evaluate(() => {
+    const ui = window.__ui;
+    const cam = ui.camera;
+    const wy = ui.inputRouter.currentGameOverLayout().buttonY - 0.32;
+    const cx = (cam.offsetX + cam.framePxW / 2) / cam.dpr;
+    const cy = (-wy * cam.pixelsPerUnit + cam.offsetY + cam.framePxH / 2) / cam.dpr;
+    ui.canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 0, isPrimary: true, clientX: cx, clientY: cy }));
+    ui.canvas.dispatchEvent(new PointerEvent('pointercancel', { button: 0, isPrimary: false, pointerId: 2 }));
+    const kept = ui.inputRouter.pressedGameOverButton === 'revive';
+    ui.inputRouter.handlePointerCancel();
+    return kept;
+  });
   await key(page, 'KeyR', false);
   const afterKeyR = await page.evaluate(() => ({
     state: window.__game.state, revived: window.__game.wasRevived,
   }));
-  out.gameOverInput = { afterHeldRelease, afterDragRelease, afterKeyR };
+  out.gameOverInput = { afterHeldRelease, afterDragRelease, nonPrimaryCancelPreserved, afterKeyR };
   out.gameOverInputOk = afterHeldRelease.state === 'gameover' && !afterHeldRelease.revived
     && afterDragRelease.state === 'gameover' && !afterDragRelease.revived
+    && nonPrimaryCancelPreserved
     && afterKeyR.state === 'play' && afterKeyR.revived;
   await page.close();
 }
