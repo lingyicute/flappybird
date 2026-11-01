@@ -2261,6 +2261,8 @@ const MISS_MULTIPLIER = 1.6;
 const WINDOW_MIN_SECONDS = 2.5;
 const WINDOW_MIN_FRAMES = 60;
 const MISS_THRESHOLD = 0.08;
+const MIN_RECOVER_WINDOWS = 2;
+const MAX_RECOVER_WINDOWS = 16;
 
 class DynamicRenderScale {
   stepIndex = 0;
@@ -2268,7 +2270,10 @@ class DynamicRenderScale {
   windowSeconds = 0;
   windowFrames = 0;
   windowMisses = 0;
-  lastWindowBad = false;
+  lastWindowBad = null;
+  streak = 0;
+  recoverWindows = MIN_RECOVER_WINDOWS;
+  justRecovered = false;
 
   get scale() {
     return RENDER_SCALE_STEPS[this.stepIndex];
@@ -2291,19 +2296,32 @@ class DynamicRenderScale {
     this.windowMisses = 0;
 
     const bad = missRatio > MISS_THRESHOLD;
-    if (bad === this.lastWindowBad) {
-      // 连续两窗口同向：卡顿时降画质，空闲时逐步恢复，避免画质只降不升。
-      if (bad && this.stepIndex < RENDER_SCALE_STEPS.length - 1) {
-        this.stepIndex += 1;
-        return true;
-      }
-      if (!bad && this.stepIndex > 0) {
-        this.stepIndex -= 1;
-        return true;
-      }
-    }
+    this.streak = bad === this.lastWindowBad ? this.streak + 1 : 1;
     this.lastWindowBad = bad;
+    // Two same-direction windows in a row lower the quality; recovering needs
+    // `recoverWindows` calm ones. Every step restarts the streak, and a step
+    // back down right after a recovery doubles the wait, so a device that cannot
+    // hold the higher scale stops flipping the canvas size every few seconds.
+    if (!bad && this.streak >= MIN_RECOVER_WINDOWS) this.justRecovered = false;
+    if (bad && this.streak >= 2 && this.stepIndex < RENDER_SCALE_STEPS.length - 1) {
+      this.stepIndex += 1;
+      if (this.justRecovered) {
+        this.recoverWindows = Math.min(this.recoverWindows * 2, MAX_RECOVER_WINDOWS);
+      }
+      return this.settleStep(false);
+    }
+    if (!bad && this.streak >= this.recoverWindows && this.stepIndex > 0) {
+      this.stepIndex -= 1;
+      return this.settleStep(true);
+    }
     return false;
+  }
+
+  settleStep(recovered) {
+    this.justRecovered = recovered;
+    this.lastWindowBad = null;
+    this.streak = 0;
+    return true;
   }
 }
 
