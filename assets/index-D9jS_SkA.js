@@ -2474,6 +2474,8 @@ const decodedBuffers = {};
 let audioCtx = null;
 let masterGainNode = null;
 let audioInitPromise = null;
+let lastAudioRetryAt = -Infinity;
+const AUDIO_RETRY_MS = 5000;
 
 const audioEngine = {
   ensureContext() {
@@ -2496,6 +2498,7 @@ const audioEngine = {
 
   async init() {
     if (audioInitPromise) return audioInitPromise;
+    if (Object.keys(SOUND_URLS).every((name) => decodedBuffers[name])) return;
     try {
       if (!this.ensureContext()) return;
     } catch (err) {
@@ -2512,12 +2515,23 @@ const audioEngine = {
         console.error(`Failed to load audio: ${name}`, err);
       }
     });
-    audioInitPromise = Promise.all(loads);
+    // clear the in-flight marker once settled so a later call can refetch
+    // whatever failed; concurrent calls still share this promise
+    audioInitPromise = Promise.all(loads).finally(() => {
+      audioInitPromise = null;
+    });
     await audioInitPromise;
   },
 
   play(name) {
-    if (soundPrefs.getSnapshot() || !audioCtx || !masterGainNode || !decodedBuffers[name]) {
+    if (soundPrefs.getSnapshot() || !audioCtx || !masterGainNode) return;
+    if (!decodedBuffers[name]) {
+      // a sound that failed to load gets another try, at most every few seconds
+      const now = performance.now();
+      if (!audioInitPromise && now - lastAudioRetryAt > AUDIO_RETRY_MS) {
+        lastAudioRetryAt = now;
+        this.init().catch(() => {});
+      }
       return;
     }
     this.resumeIfNeeded();
